@@ -3,8 +3,10 @@
 // CEDEKA WORLD CUP — Router Principal (HARDENED)
 // =============================================
 require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/init-db.php';
 require_once __DIR__ . '/includes/layout.php';
 
+initDB();
 startSession();
 $page = $_GET['page'] ?? 'home';
 $user = getCurrentUser();
