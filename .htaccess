@@ -1,0 +1,26 @@
+Options -Indexes
+
+# Protect includes folder
+<FilesMatch "^.*$">
+  Order Allow,Deny
+  Allow from all
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Block access to includes
+  RewriteRule ^includes/ - [F,L]
+
+  # Pretty URLs (optional)
+  # RewriteRule ^partidos$ /index.php?page=matches [L,QSA]
+  # RewriteRule ^apuesta/([0-9]+)$ /index.php?page=bet&id=$1 [L,QSA]
+</IfModule>
+
+# PHP settings
+<IfModule mod_php.c>
+  php_value session.gc_maxlifetime 7200
+  php_value upload_max_filesize 5M
+  php_value post_max_size 6M
+</IfModule>
