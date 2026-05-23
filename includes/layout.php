@@ -38,7 +38,107 @@ function renderFoot(): void { ?>
 <footer style="text-align:center;padding:24px;color:var(--text-dim);font-size:12px;border-top:1px solid var(--border);margin-top:40px">
   Cedeka World Cup ⚽ &nbsp;·&nbsp; El 10% de cada pozo va a la plataforma &nbsp;·&nbsp; Juega responsable
 </footer>
+
+<!-- =============================================
+     MODAL INTRO — aparece solo la primera vez
+     ============================================= -->
+<div id="introModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);overflow-y:auto;padding:24px 16px">
+  <div style="max-width:680px;margin:0 auto;background:var(--bg2);border:1px solid rgba(245,200,66,0.25);border-radius:16px;padding:36px 32px;position:relative">
+
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:52px;margin-bottom:8px">⚽</div>
+      <h2 style="font-family:var(--font-head);font-size:38px;letter-spacing:3px;color:#fff;line-height:1">
+        BIENVENIDO A<br><span style="color:var(--gold)">CEDEKA WC</span>
+      </h2>
+      <p style="color:var(--text-dim);font-size:14px;margin-top:10px">La quiniela donde el minuto exacto del gol lo es todo</p>
+    </div>
+
+    <!-- Cards de pasos -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:28px">
+
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:20px">
+        <div style="font-size:32px;margin-bottom:10px">💰</div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:15px;color:var(--gold);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">1. Carga Cedenas</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.5">Recarga tu billetera con Cedenas enviando un comprobante de pago. El admin aprueba y te acredita el saldo.</p>
+      </div>
+
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:20px">
+        <div style="font-size:32px;margin-bottom:10px">⚽</div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:15px;color:var(--gold);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">2. Elige un Partido</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.5">Selecciona cualquier partido abierto de la lista. Verás el pozo acumulado y cuántas apuestas hay.</p>
+      </div>
+
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:20px">
+        <div style="font-size:32px;margin-bottom:10px">🎯</div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:15px;color:var(--gold);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">3. Apuesta el Minuto</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.5">Elige qué equipo mete el gol y el <strong style="color:#fff">minuto exacto</strong> (1–90). Cuanto más apostar, más ganas si aciertas.</p>
+      </div>
+
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:20px">
+        <div style="font-size:32px;margin-bottom:10px">🏆</div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:15px;color:var(--gold);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">4. Gana el Pozo</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.5">Si el equipo mete gol en ese minuto exacto, ¡ganaste! El 90% del pozo se reparte entre los acertadores.</p>
+      </div>
+
+    </div>
+
+    <!-- Regla del pozo -->
+    <div style="background:rgba(245,200,66,0.07);border:1px solid rgba(245,200,66,0.2);border-radius:10px;padding:16px 20px;margin-bottom:24px;display:flex;gap:14px;align-items:flex-start">
+      <div style="font-size:24px;flex-shrink:0">💡</div>
+      <div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:13px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">¿Nadie acierta?</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.5;margin:0">El pozo se <strong style="color:#fff">acumula</strong> al siguiente partido. Mientras más partidos sin ganador, ¡más grande el premio!</p>
+      </div>
+    </div>
+
+    <!-- Distribución -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:28px;text-align:center">
+      <div style="background:var(--bg3);border-radius:8px;padding:14px">
+        <div style="font-family:var(--font-head);font-size:28px;color:var(--green)">90%</div>
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Para ganadores</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:14px">
+        <div style="font-family:var(--font-head);font-size:28px;color:var(--gold)">10%</div>
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Comisión plataforma</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:14px">
+        <div style="font-family:var(--font-head);font-size:28px;color:var(--blue)">1–90</div>
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Minutos disponibles</div>
+      </div>
+    </div>
+
+    <!-- Botón cerrar -->
+    <button onclick="closeIntro()" class="btn btn-primary btn-block btn-lg" style="font-size:16px">
+      ¡Entendido, quiero apostar! 🎯
+    </button>
+    <p style="text-align:center;font-size:12px;color:var(--text-dim);margin-top:12px">
+      <a href="#" onclick="closeIntro()" style="color:var(--text-dim)">No mostrar de nuevo</a>
+    </p>
+  </div>
+</div>
+
 <script src="/assets/js/app.js"></script>
+<script>
+// Mostrar modal solo la primera vez (usa localStorage)
+(function() {
+  if (!localStorage.getItem('cedeka_intro_seen')) {
+    document.getElementById('introModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  }
+})();
+
+function closeIntro() {
+  localStorage.setItem('cedeka_intro_seen', '1');
+  document.getElementById('introModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// Cerrar con Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeIntro();
+});
+</script>
 </body>
 </html>
 <?php }
