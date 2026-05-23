@@ -21,20 +21,6 @@ define('LOGIN_MAX_ATTEMPTS', 5);
 define('LOGIN_LOCKOUT_SECS', 900);   // 15 minutos
 define('REG_MAX_PER_IP_DAY', 3);
 
-// =============================================
-// CABECERAS DE SEGURIDAD HTTP
-// =============================================
-function sendSecurityHeaders(): void {
-    header("X-Frame-Options: DENY");
-    header("X-Content-Type-Options: nosniff");
-    header("X-XSS-Protection: 1; mode=block");
-    header("Referrer-Policy: strict-origin-when-cross-origin");
-    header("Permissions-Policy: geolocation=(), microphone=(), camera=()");
-    header("Content-Security-Policy: default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com");
-    // Activar en producción HTTPS:
-    // header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
-}
-// sendSecurityHeaders se llama desde index.php antes de cualquier output
 
 // =============================================
 // CONEXIÓN PDO — errores no expuestos al usuario
