@@ -3,10 +3,8 @@
 // CEDEKA WORLD CUP — Router Principal (HARDENED)
 // =============================================
 require_once __DIR__ . '/includes/config.php';
-require_once __DIR__ . '/includes/init-db.php';
 require_once __DIR__ . '/includes/layout.php';
 
-initDB();
 startSession();
 $page = $_GET['page'] ?? 'home';
 $user = getCurrentUser();
@@ -744,36 +742,94 @@ function pageWallet(?array $user): void {
 function pageRecharge(?array $user): void {
     $user = requireLogin();
 ?>
-<div class="page-wrap" style="max-width:560px">
+<div class="page-wrap" style="max-width:600px">
   <?php renderFlash(); ?>
   <a href="/index.php?page=wallet" class="btn btn-ghost btn-sm mb-3">← Volver</a>
   <h1 class="page-title">CARGAR <span>CEDENAS</span></h1>
-  <div class="card">
-    <div class="alert alert-info mb-3">ℹ️ Envía tu transferencia y completa el formulario. El admin revisará y acreditará las Cedenas.</div>
+  <p class="page-subtitle">1 peso argentino = 1 Cedena ₵</p>
+
+  <!-- Paso 1 -->
+  <div class="card mb-3">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div style="width:32px;height:32px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:18px;color:#000;flex-shrink:0">1</div>
+      <div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:1px">Doná en Ceneka</div>
+        <div style="font-size:12px;color:var(--text-dim)">Elegí el monto que querés cargar en pesos</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      <?php foreach ([500,1000,2000,5000,10000,20000] as $m): ?>
+      <a href="https://ceneka.net/Dnt894" target="_blank"
+         style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;text-decoration:none;display:block;transition:all 0.2s"
+         onmouseover="this.style.borderColor='rgba(245,200,66,0.4)'"
+         onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-family:var(--font-head);font-size:22px;color:var(--gold)">₵<?= number_format($m) ?></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">$<?= number_format($m) ?> ARS</div>
+      </a>
+      <?php endforeach; ?>
+    </div>
+    <a href="https://ceneka.net/Dnt894" target="_blank" class="btn btn-primary btn-block btn-lg">
+      💜 Ir a Ceneka a Donar
+    </a>
+    <p style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:8px">
+      Mercado Pago · Tarjetas · Crypto · y más
+    </p>
+  </div>
+
+  <!-- Paso 2 -->
+  <div class="card mb-3">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div style="width:32px;height:32px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:18px;color:#000;flex-shrink:0">2</div>
+      <div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:1px">Avisá que donaste</div>
+        <div style="font-size:12px;color:var(--text-dim)">Completá el formulario para que el admin acredite tus Cedenas</div>
+      </div>
+    </div>
     <form method="POST" action="/index.php?page=recharge">
       <?php csrfField(); ?>
       <input type="hidden" name="action" value="recharge_request">
+      <input type="hidden" name="payment_method" value="ceneka">
       <div class="form-group">
-        <label class="form-label">Monto de Cedenas</label>
-        <input type="number" name="amount" class="form-control" min="1" max="100000" step="1" placeholder="Ej: 100" required>
+        <label class="form-label">Cuánto donaste en pesos ARS</label>
+        <div style="position:relative">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-family:var(--font-sub);font-weight:700">$</span>
+          <input type="number" name="amount" class="form-control" min="1" max="100000" step="1"
+                 placeholder="Ej: 1000" required style="padding-left:28px"
+                 oninput="updateCedenas(this.value)">
+        </div>
+        <div id="cedenasPreview" style="margin-top:6px;font-size:13px;color:var(--text-dim)">= 0 Cedenas ₵</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Método de pago</label>
-        <select name="payment_method" class="form-control">
-          <option value="transferencia">Transferencia Bancaria</option>
-          <option value="efectivo">Efectivo</option>
-          <option value="crypto">Cripto</option>
-          <option value="otro">Otro</option>
-        </select>
+        <label class="form-label">Tu nombre en Ceneka o referencia del pago</label>
+        <input type="text" name="receipt_notes" class="form-control" maxlength="500"
+               placeholder="Ej: DanteTrb · o el ID de transacción de MP" required>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Esto nos ayuda a identificar tu donación en Ceneka</div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Datos del comprobante</label>
-        <textarea name="receipt_notes" class="form-control" rows="4" maxlength="500" placeholder="Número de transacción, banco, fecha..."></textarea>
-      </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg">Enviar Solicitud 💰</button>
+      <button type="submit" class="btn btn-green btn-block btn-lg">
+        ✅ Ya doné, acreditá mis Cedenas
+      </button>
     </form>
   </div>
+
+  <!-- Paso 3 -->
+  <div class="card" style="background:rgba(61,169,252,0.05);border-color:rgba(61,169,252,0.2)">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:32px;height:32px;background:var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:18px;color:#000;flex-shrink:0">3</div>
+      <div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:1px;color:var(--blue)">Recibí tus Cedenas</div>
+        <div style="font-size:12px;color:var(--text-dim)">El admin verifica tu donación en Ceneka y acredita tus Cedenas. Normalmente en menos de 24 horas.</div>
+      </div>
+    </div>
+  </div>
 </div>
+<script>
+function updateCedenas(val) {
+  const n = parseInt(val) || 0;
+  const el = document.getElementById('cedenasPreview');
+  el.textContent = '= ' + n.toLocaleString('es-AR') + ' Cedenas ₵';
+  el.style.color = n > 0 ? 'var(--gold)' : 'var(--text-dim)';
+}
+</script>
 <?php }
 
 function page404(): void { ?>
