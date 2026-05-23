@@ -1,11 +1,11 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
-RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    && docker-php-ext-install pdo pdo_mysql \
-    && a2enmod rewrite
+RUN docker-php-ext-install pdo pdo_mysql
 
-COPY . /var/www/html/
+WORKDIR /var/www/html
 
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+COPY . .
+
+EXPOSE 8080
+
+CMD php -S 0.0.0.0:8080
