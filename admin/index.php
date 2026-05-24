@@ -21,6 +21,16 @@ renderNav($user);
 
 echo '<div class="admin-layout">';
 renderAdminSidebar($page);
+// Mobile nav
+$p = $page;
+echo '<nav class="admin-mobile-nav">
+  <a href="/admin/index.php?page=dashboard" class="'.($p==='dashboard'?'active':''). '">📊 Dashboard</a>
+  <a href="/admin/index.php?page=matches"   class="'.($p==='matches'?'active':'').   '">⚽ Partidos</a>
+  <a href="/admin/index.php?page=match_new" class="'.($p==='match_new'?'active':'').'"  >➕ Nuevo</a>
+  <a href="/admin/index.php?page=goals"     class="'.($p==='goals'?'active':'').     '">🥅 Goles</a>
+  <a href="/admin/index.php?page=recharges" class="'.($p==='recharges'?'active':'').'"  >💰 Recargas</a>
+  <a href="/admin/index.php?page=users"     class="'.($p==='users'?'active':'').     '">👥 Usuarios</a>
+</nav>';
 echo '<div class="admin-content">';
 
 switch ($page) {

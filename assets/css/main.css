@@ -516,3 +516,214 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .empty-state { text-align:center;padding:48px 20px;color:var(--text-dim); }
 .empty-state .icon { font-size:48px;margin-bottom:12px; }
 .empty-state h3 { font-family:var(--font-sub);font-size:18px;margin-bottom:6px;color:var(--text); }
+
+/* =============================================
+   MOBILE IMPROVEMENTS v2
+   ============================================= */
+
+/* ---- Navbar móvil ---- */
+@media (max-width: 768px) {
+  nav.navbar {
+    height: 56px;
+    padding: 0 14px;
+    position: sticky; top: 0;
+  }
+
+  .nav-logo img { height: 38px; }
+
+  /* Ocultar links de texto en móvil */
+  .nav-links { gap: 2px; }
+  .nav-links a { padding: 6px 8px; font-size: 18px; }
+  .nav-links a .nav-label { display: none; }
+
+  .nav-balance {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  /* ---- Bottom nav bar en móvil ---- */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(5,8,16,0.97);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(201,168,76,0.15);
+    z-index: 200;
+    padding: 8px 0 env(safe-area-inset-bottom, 8px);
+  }
+
+  /* Espacio para el bottom nav */
+  body { padding-bottom: 70px; }
+}
+
+.mobile-bottom-nav {
+  display: none; /* oculto en desktop */
+}
+
+.mobile-bottom-nav a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-decoration: none;
+  color: var(--text-dim);
+  font-family: var(--font-sub);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 6px 4px;
+  transition: color 0.2s;
+}
+.mobile-bottom-nav a .nav-icon { font-size: 20px; line-height: 1; }
+.mobile-bottom-nav a.active { color: var(--gold); }
+.mobile-bottom-nav a:hover { color: var(--text); }
+
+/* ---- Cards en móvil ---- */
+@media (max-width: 768px) {
+  .match-card { padding: 16px; }
+  .match-team { font-size: 15px; gap: 8px; }
+  .team-flag  { font-size: 24px; }
+  .match-vs   { font-size: 18px; }
+
+  /* Stack grid en 1 columna */
+  .grid-matches { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+
+  /* Stat boxes más compactos */
+  .stat-value { font-size: 26px; }
+  .stat-box   { padding: 14px 12px; }
+
+  /* Page titles más chicos */
+  .page-title { font-size: 32px; letter-spacing: 2px; }
+
+  /* Cards con menos padding */
+  .card { padding: 16px; }
+
+  /* Auth card sin bordes en móvil */
+  .auth-card { padding: 28px 20px; border-radius: 12px; }
+
+  /* Wallet amount */
+  .wallet-amount { font-size: 42px; }
+  .wallet-balance-box { padding: 20px; }
+}
+
+/* ---- Minute grid mejorada para móvil ---- */
+@media (max-width: 768px) {
+  .minute-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    max-height: 300px;
+  }
+  .minute-btn {
+    font-size: 13px;
+    min-height: 42px; /* más fácil tocar con el dedo */
+    border-radius: 8px;
+  }
+}
+
+/* ---- Botones más grandes en móvil ---- */
+@media (max-width: 768px) {
+  .btn-lg {
+    padding: 16px 24px;
+    font-size: 15px;
+  }
+  .btn { min-height: 44px; } /* mínimo recomendado por Apple/Google */
+
+  /* Quick amount buttons en recarga */
+  .quick-amounts {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ---- Tabla responsive ---- */
+@media (max-width: 768px) {
+  .table-wrap { margin: 0 -16px; }
+  .data-table th, .data-table td {
+    padding: 10px 10px;
+    font-size: 12px;
+  }
+  /* Ocultar columnas menos importantes en móvil */
+  .hide-mobile { display: none !important; }
+}
+
+/* ---- Form row en móvil ---- */
+@media (max-width: 480px) {
+  .form-row { grid-template-columns: 1fr; }
+  .grid-2   { grid-template-columns: 1fr; }
+  .grid-3   { grid-template-columns: 1fr; }
+}
+
+/* ---- Hero en móvil ---- */
+@media (max-width: 768px) {
+  .hero { padding: 32px 16px 24px; }
+  .hero-logo { width: min(180px, 50vw); margin-bottom: 12px; }
+  .hero-sub  { font-size: 13px; margin: 12px auto 20px; }
+  .hero .btn { min-width: 140px; }
+}
+
+/* ---- Admin sidebar en móvil — hamburger ---- */
+@media (max-width: 768px) {
+  .admin-layout { flex-direction: column; }
+  .admin-content { padding: 16px; }
+
+  /* Mini admin nav horizontal */
+  .admin-mobile-nav {
+    display: flex !important;
+    overflow-x: auto;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .admin-mobile-nav::-webkit-scrollbar { display: none; }
+  .admin-mobile-nav a {
+    flex-shrink: 0;
+    font-family: var(--font-sub);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .admin-mobile-nav a.active {
+    color: var(--gold);
+    background: rgba(201,168,76,0.08);
+    border-color: rgba(201,168,76,0.3);
+  }
+}
+.admin-mobile-nav { display: none; }
+
+/* ---- Scroll suave en toda la app ---- */
+html { scroll-behavior: smooth; }
+
+/* ---- Touch feedback ---- */
+@media (hover: none) {
+  .btn:active       { opacity: 0.8; transform: scale(0.98); }
+  .match-card:active{ opacity: 0.9; transform: scale(0.99); }
+  .minute-btn:active{ transform: scale(0.92); }
+}
+
+/* ---- Prevent zoom en inputs iOS ---- */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important; /* iOS no hace zoom si font-size >= 16px */
+  }
+}
+
+/* ---- Safe area para notch/home indicator ---- */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .mobile-bottom-nav {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+}
