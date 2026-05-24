@@ -14,7 +14,9 @@ function renderHead(string $title = 'Cedeka World Cup'): void { ?>
 
 function renderNav(?array $user): void { ?>
 <nav class="navbar">
-  <a href="/index.php" class="nav-logo">CEDEKA <span>WC</span></a>
+  <a href="/index.php" class="nav-logo">
+    <img src="/assets/logo.png" alt="Cedeka WC">
+  </a>
   <div class="nav-links">
     <a href="/index.php?page=home">🏠 <span>Inicio</span></a>
     <?php if ($user): ?>
