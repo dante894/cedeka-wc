@@ -4,10 +4,11 @@
 // =============================================
 
 // ⚠️  CAMBIAR ANTES DE PRODUCCIÓN
-define('DB_HOST',    'localhost');
-define('DB_NAME',    'cedeka_quiniela');
-define('DB_USER',    'cedeka_app');          // ← NO usar root
-define('DB_PASS',    'CAMBIAR_PASSWORD');    // ← Contraseña fuerte
+define('DB_HOST',    $_ENV['DB_HOST']    ?? getenv('DB_HOST')    ?: 'localhost');
+define('DB_NAME',    $_ENV['DB_NAME']    ?? getenv('DB_NAME')    ?: 'cedeka_quiniela');
+define('DB_USER',    $_ENV['DB_USER']    ?? getenv('DB_USER')    ?: 'root');
+define('DB_PASS',    $_ENV['DB_PASS']    ?? getenv('DB_PASS')    ?: '');
+define('DB_PORT',    $_ENV['DB_PORT']    ?? getenv('DB_PORT')    ?: '3306');
 define('DB_CHARSET', 'utf8mb4');
 
 define('SITE_NAME',        'Cedeka World Cup');
@@ -28,7 +29,7 @@ define('REG_MAX_PER_IP_DAY', 3);
 function getDB(): PDO {
     static $pdo = null;
     if ($pdo === null) {
-        $dsn = "mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=".DB_CHARSET;
+        $dsn = "mysql:host=".DB_HOST.";port=".DB_PORT.";dbname=".DB_NAME.";charset=".DB_CHARSET;
         $opts = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
