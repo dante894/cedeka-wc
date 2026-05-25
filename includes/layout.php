@@ -22,6 +22,7 @@ function renderNav(?array $user): void { ?>
     <?php if ($user): ?>
       <a href="/index.php?page=matches">⚽ <span>Partidos</span></a>
       <a href="/index.php?page=my_bets">🎯 <span>Mis Apuestas</span></a>
+      <a href="/index.php?page=ranking">📊 <span>Ranking</span></a>
       <a href="/index.php?page=wallet">💰 <span>Wallet</span></a>
       <?php if ($user['role'] === 'admin'): ?>
         <a href="/admin/index.php" style="color:var(--gold)">👑 Admin</a>
