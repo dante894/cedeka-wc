@@ -27,7 +27,7 @@ function renderNav(?array $user): void { ?>
         <a href="/admin/index.php" style="color:var(--gold)">👑 Admin</a>
       <?php endif; ?>
       <span class="nav-balance" data-tip="Saldo en Cedenas"><?= formatCedenas((float)($user['balance'] ?? 0)) ?></span>
-      <a href="/index.php?page=logout" class="nav-avatar" title="Cerrar sesión"><?= h($user['avatar'] ?? '⚽') ?></a>
+      <a href="/index.php?page=profile" class="nav-avatar" title="Mi perfil"><?= h($user['avatar'] ?? '⚽') ?></a>
     <?php else: ?>
       <a href="/index.php?page=login" class="btn btn-ghost btn-sm">Entrar</a>
       <a href="/index.php?page=register" class="btn btn-primary btn-sm">Registrarse</a>
