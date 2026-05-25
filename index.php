@@ -5,6 +5,8 @@ ob_start();
 // =============================================
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/layout.php';
+require_once __DIR__ . '/includes/telegram.php';
+require_once __DIR__ . '/includes/telegram.php';
 
 
 startSession();
@@ -191,6 +193,9 @@ function handlePost(string $page, ?array $user): void {
                ->execute([$user['id'], 'bet', -$amount, $newBal, "Apuesta {$team} min {$minute} — partido #{$matchId}", $betId]);
 
             $db->commit();
+            // Notificar al admin por Telegram
+            $matchName = $match['home_team'] . ' vs ' . $match['away_team'];
+            notifyNewBet($user, $matchName, $team, $minute, $amount);
             flash('success', "🎯 ¡Apuesta registrada! {$team} en el minuto {$minute}");
             redirect('/index.php?page=my_bets');
         } catch (Exception $e) {
@@ -236,6 +241,8 @@ function handlePost(string $page, ?array $user): void {
 
         $db->prepare("INSERT INTO recharge_requests (user_id,amount_cedenas,payment_method,receipt_notes) VALUES (?,?,?,?)")
            ->execute([$user['id'], $amount, $method, $notes]);
+        // Notificar al admin por Telegram
+        notifyRechargeRequest($user, $amount, $notes);
         flash('success', 'Solicitud enviada. El admin la revisará pronto ✅');
         redirect('/index.php?page=wallet');
     }

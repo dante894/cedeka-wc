@@ -5,6 +5,8 @@ ob_start();
 // =============================================
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/telegram.php';
+require_once __DIR__ . '/../includes/telegram.php';
 
 
 startSession();
@@ -147,6 +149,8 @@ function adminHandlePost(array $admin): void {
                ->execute([$req['user_id'], 'deposit', (float)$req['amount_cedenas'], $newBal, 'Recarga aprobada #'.$reqId, $reqId]);
 
             $db->commit();
+            // Notificar al admin por Telegram
+            notifyRechargeApproved(['username' => $req['username'] ?? 'Usuario'], (float)$req['amount_cedenas']);
             flash('success', formatCedenas((float)$req['amount_cedenas']).' acreditadas ✅');
         } catch (Exception $e) {
             $db->rollBack();
