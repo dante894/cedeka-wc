@@ -3,8 +3,8 @@
 // CEDEKA WC — Notificaciones Telegram
 // =============================================
 
-define('TELEGRAM_TOKEN',   getenv('TELEGRAM_TOKEN')   ?: '8938988490:AAH8fC10Ah5Wvf36HYjZslgLe_1RRJ49R4E');
-define('TELEGRAM_CHAT_ID', getenv('TELEGRAM_CHAT_ID') ?: '5262045755');
+define('TELEGRAM_TOKEN',   getenv('TELEGRAM_TOKEN')   ?: '');
+define('TELEGRAM_CHAT_ID', getenv('TELEGRAM_CHAT_ID') ?: '');
 
 function sendTelegram(string $message): bool {
     $token  = TELEGRAM_TOKEN;
