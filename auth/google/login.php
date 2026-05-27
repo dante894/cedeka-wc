@@ -5,6 +5,8 @@
 ob_start();
 require_once __DIR__ . '/../../includes/config.php';
 
+// Forzar mismo nombre de sesión
+session_name('CEDEKA_SID');
 startSession();
 
 $clientId    = $_ENV['GOOGLE_CLIENT_ID']    ?? getenv('GOOGLE_CLIENT_ID')    ?? '';

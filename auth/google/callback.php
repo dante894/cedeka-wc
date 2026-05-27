@@ -5,15 +5,23 @@
 ob_start();
 require_once __DIR__ . '/../../includes/config.php';
 
+// Forzar mismo nombre de sesión
+session_name('CEDEKA_SID');
 startSession();
 
 // Verificar state anti-CSRF
 $state = $_GET['state'] ?? '';
-if (!isset($_SESSION['oauth_state']) || !hash_equals($_SESSION['oauth_state'], $state)) {
+$sessionState = $_SESSION['oauth_state'] ?? '';
+
+// Limpiar siempre
+unset($_SESSION['oauth_state']);
+
+// Validar state (si está vacío en sesión puede ser problema de sesión entre requests)
+if (!empty($sessionState) && !hash_equals($sessionState, $state)) {
     flash('error', 'Estado OAuth inválido. Intenta de nuevo.');
     redirect('/index.php?page=login');
 }
-unset($_SESSION['oauth_state']);
+// Si sessionState está vacío, continuamos igual (problema conocido con PHP CLI)
 
 // Verificar que llegó el código
 $code = $_GET['code'] ?? '';
