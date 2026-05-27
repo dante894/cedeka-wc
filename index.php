@@ -289,6 +289,50 @@ function handlePost(string $page, ?array $user): void {
 // =============================================
 // PÁGINAS
 // =============================================
+// =============================================
+// HELPERS — Score y Goles en cards
+// =============================================
+function renderMatchScore(array $m, array $goals): void {
+    // Calcular marcador
+    $homeGoals = count(array_filter($goals, fn($g) => $g['team'] === $m['home_team']));
+    $awayGoals = count(array_filter($goals, fn($g) => $g['team'] === $m['away_team']));
+    $hasGoals  = !empty($goals);
+?>
+<div class="match-teams" style="margin-bottom:6px">
+  <div class="match-team">
+    <span class="team-flag"><?= h($m['home_flag']) ?></span>
+    <span><?= h($m['home_team']) ?></span>
+  </div>
+  <div style="text-align:center;min-width:60px">
+    <?php if ($hasGoals): ?>
+      <div style="font-family:var(--font-head);font-size:28px;letter-spacing:4px;color:#fff;line-height:1">
+        <?= $homeGoals ?><span style="color:var(--muted);margin:0 4px">-</span><?= $awayGoals ?>
+      </div>
+    <?php else: ?>
+      <div style="font-family:var(--font-head);font-size:22px;letter-spacing:3px;color:var(--muted)">VS</div>
+    <?php endif; ?>
+  </div>
+  <div class="match-team away">
+    <span class="team-flag"><?= h($m['away_flag']) ?></span>
+    <span><?= h($m['away_team']) ?></span>
+  </div>
+</div>
+<?php }
+
+function renderGoalsList(array $goals): void {
+    if (empty($goals)) return;
+?>
+<div style="background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;flex-wrap:wrap;gap:6px">
+  <?php foreach ($goals as $g): ?>
+  <span style="font-size:11px;color:var(--text-dim);display:inline-flex;align-items:center;gap:4px">
+    ⚽ <span style="color:var(--text);font-weight:600;font-family:var(--font-sub)"><?= h($g['team']) ?></span>
+    <span style="color:var(--gold);font-family:var(--font-sub);font-weight:700">'<?= (int)$g['minute'] ?></span>
+    <?php if ($g['scorer']): ?><span style="color:var(--text-dim)">(<?= h($g['scorer']) ?>)</span><?php endif; ?>
+  </span>
+  <?php endforeach; ?>
+</div>
+<?php }
+
 function pageHome(?array $user): void { ?>
 <div class="hero">
   <div class="hero-ball">⚽</div>
@@ -309,21 +353,35 @@ function pageHome(?array $user): void { ?>
 
 <?php
 $db = getDB();
-$matches = $db->query("SELECT m.*, (SELECT COUNT(*) FROM bets b WHERE b.match_id=m.id) as bet_count FROM matches m WHERE m.status IN ('open','in_progress') ORDER BY m.match_date ASC LIMIT 6")->fetchAll();
+$matches = $db->query("SELECT m.*, (SELECT COUNT(*) FROM bets b WHERE b.match_id=m.id) as bet_count FROM matches m WHERE m.status IN ('open','in_progress','finished','closed') ORDER BY m.match_date ASC LIMIT 6")->fetchAll();
+$matchIds = array_column($matches, 'id');
+$goalsMap = [];
+if ($matchIds) {
+    $ph = implode(',', array_fill(0, count($matchIds), '?'));
+    $gs = $db->prepare("SELECT * FROM goals WHERE match_id IN ($ph) ORDER BY minute ASC");
+    $gs->execute($matchIds);
+    foreach ($gs->fetchAll() as $g) $goalsMap[$g['match_id']][] = $g;
+}
 if ($matches): ?>
 <div class="page-wrap">
   <h2 style="font-family:var(--font-head);font-size:28px;letter-spacing:2px;margin-bottom:16px">PRÓXIMOS PARTIDOS</h2>
   <div class="grid-matches mb-4">
   <?php foreach ($matches as $m): ?>
     <a href="/index.php?page=bet&id=<?= (int)$m['id'] ?>" class="match-card status-<?= h($m['status']) ?>">
-      <div class="match-teams">
-        <div class="match-team"><span class="team-flag"><?= h($m['home_flag']) ?></span><span><?= h($m['home_team']) ?></span></div>
-        <span class="match-vs">VS</span>
-        <div class="match-team away"><span class="team-flag"><?= h($m['away_flag']) ?></span><span><?= h($m['away_team']) ?></span></div>
+      <div class="flex-between mb-1">
+        <?php echo match($m['status']) {
+            'open'        => '<span class="badge badge-open">🟢 Abierto</span>',
+            'in_progress' => '<span class="badge badge-live">🔴 En Vivo</span>',
+            'closed'      => '<span class="badge badge-closed">🔒 Cerrado</span>',
+            'finished'    => '<span class="badge badge-done">✅ Finalizado</span>',
+            default       => ''
+        }; ?>
       </div>
-      <div class="match-meta">
-        <span><?= date('d M · H:i', strtotime($m['match_date'])) ?></span>
-        <span class="match-pot"><?= formatCedenas((float)$m['pot_total']) ?> en el pozo</span>
+      <?php renderMatchScore($m, $goalsMap[$m['id']] ?? []); ?>
+      <?php renderGoalsList($goalsMap[$m['id']] ?? []); ?>
+      <div class="match-meta mt-1">
+        <span class="text-muted fs-xs"><?= date('d M · H:i', strtotime($m['match_date'])) ?></span>
+        <span class="match-pot"><?= formatCedenas((float)$m['pot_total']) ?></span>
       </div>
     </a>
   <?php endforeach; ?>
@@ -438,6 +496,14 @@ function pageMatches(?array $user): void {
     $stmt = $db->prepare("SELECT m.*, (SELECT COUNT(*) FROM bets b WHERE b.match_id=m.id) as bet_count, (SELECT COUNT(*) FROM bets b WHERE b.match_id=m.id AND b.user_id=?) as my_bets FROM matches m WHERE m.status IN ($ph) ORDER BY m.match_date ASC");
     $stmt->execute(array_merge([$user['id']], $statuses));
     $matches = $stmt->fetchAll();
+    $matchIds = array_column($matches, 'id');
+    $goalsMap = [];
+    if ($matchIds) {
+        $gph = implode(',', array_fill(0, count($matchIds), '?'));
+        $gs  = $db->prepare("SELECT * FROM goals WHERE match_id IN ($gph) ORDER BY minute ASC");
+        $gs->execute($matchIds);
+        foreach ($gs->fetchAll() as $g) $goalsMap[$g['match_id']][] = $g;
+    }
 ?>
 <div class="page-wrap">
   <?php renderFlash(); ?>
@@ -464,12 +530,9 @@ function pageMatches(?array $user): void {
         }; ?>
         <?php if ($m['my_bets'] > 0): ?><span class="badge badge-pending">🎯 Tu apuesta</span><?php endif; ?>
       </div>
-      <div class="match-teams">
-        <div class="match-team"><span class="team-flag"><?= h($m['home_flag']) ?></span><span><?= h($m['home_team']) ?></span></div>
-        <span class="match-vs">VS</span>
-        <div class="match-team away"><span class="team-flag"><?= h($m['away_flag']) ?></span><span><?= h($m['away_team']) ?></span></div>
-      </div>
-      <div class="match-meta">
+      <?php renderMatchScore($m, $goalsMap[$m['id']] ?? []); ?>
+      <?php renderGoalsList($goalsMap[$m['id']] ?? []); ?>
+      <div class="match-meta mt-1">
         <span class="text-muted fs-xs"><?= date('d M · H:i', strtotime($m['match_date'])) ?></span>
         <span class="match-pot"><?= formatCedenas((float)$m['pot_total']) ?></span>
       </div>
