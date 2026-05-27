@@ -280,7 +280,7 @@ function handlePost(string $page, ?array $user): void {
         $db->prepare("INSERT INTO recharge_requests (user_id,amount_cedenas,payment_method,receipt_notes) VALUES (?,?,?,?)")
            ->execute([$user['id'], $amount, $method, $notes]);
         // Notificar al admin por Telegram
-        notifyRechargeRequest($user, $amount, $notes);
+        notifyNewRecharge($user, $amount, $notes);
         flash('success', 'Solicitud enviada. El admin la revisará pronto ✅');
         redirect('/index.php?page=wallet');
     }
