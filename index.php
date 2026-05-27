@@ -260,7 +260,7 @@ function handlePost(string $page, ?array $user): void {
         }
 
         // Validar método contra lista blanca
-        $allowedMethods = ['transferencia','efectivo','crypto','otro'];
+        $allowedMethods = ['transferencia','efectivo','crypto','otro','ceneka'];
         if (!in_array($method, $allowedMethods, true)) {
             flash('error', 'Método de pago inválido');
             redirect('/index.php?page=recharge');
