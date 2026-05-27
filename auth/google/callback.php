@@ -22,9 +22,9 @@ if (!$code) {
     redirect('/index.php?page=login');
 }
 
-$clientId     = getenv('GOOGLE_CLIENT_ID') ?: '';
-$clientSecret = getenv('GOOGLE_CLIENT_SECRET') ?: '';
-$redirectUri  = getenv('GOOGLE_REDIRECT_URI') ?: '';
+$clientId     = $_ENV['GOOGLE_CLIENT_ID']     ?? getenv('GOOGLE_CLIENT_ID')     ?? '';
+$clientSecret = $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?? '';
+$redirectUri  = $_ENV['GOOGLE_REDIRECT_URI']  ?? getenv('GOOGLE_REDIRECT_URI')  ?? '';
 
 // ---- Intercambiar código por token ----
 $ch = curl_init('https://oauth2.googleapis.com/token');

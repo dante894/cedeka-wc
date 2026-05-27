@@ -7,8 +7,12 @@ require_once __DIR__ . '/../../includes/config.php';
 
 startSession();
 
-$clientId    = getenv('GOOGLE_CLIENT_ID') ?: '';
-$redirectUri = getenv('GOOGLE_REDIRECT_URI') ?: '';
+$clientId    = $_ENV['GOOGLE_CLIENT_ID']    ?? getenv('GOOGLE_CLIENT_ID')    ?? '';
+$redirectUri = $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?? '';
+
+if (empty($clientId)) {
+    die('Error: GOOGLE_CLIENT_ID no configurado. Configura las variables de entorno en Railway.');
+}
 
 // Generar state para prevenir CSRF
 $state = bin2hex(random_bytes(16));
