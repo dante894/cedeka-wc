@@ -55,6 +55,33 @@ function adminHandlePost(array $admin): void {
     $db     = getDB();
     $action = $_POST['action'] ?? '';
 
+    if ($action === 'delete_match') {
+        $matchId = (int)$_POST['match_id'];
+
+        // Verificar que no tenga apuestas activas
+        $stmt = $db->prepare("SELECT COUNT(*) FROM bets WHERE match_id=? AND status='pending'");
+        $stmt->execute([$matchId]);
+        $pendingBets = (int)$stmt->fetchColumn();
+
+        if ($pendingBets > 0) {
+            flash('error', "No se puede eliminar — tiene {$pendingBets} apuesta(s) pendiente(s)");
+            redirect('/admin/index.php?page=matches');
+        }
+
+        $db->beginTransaction();
+        try {
+            $db->prepare("DELETE FROM goals WHERE match_id=?")->execute([$matchId]);
+            $db->prepare("DELETE FROM bets WHERE match_id=?")->execute([$matchId]);
+            $db->prepare("DELETE FROM matches WHERE id=?")->execute([$matchId]);
+            $db->commit();
+            flash('success', 'Partido eliminado ✅');
+        } catch (Exception $e) {
+            $db->rollBack();
+            flash('error', 'Error al eliminar el partido');
+        }
+        redirect('/admin/index.php?page=matches');
+    }
+
     if ($action === 'add_match') {
         $home  = mb_substr(trim($_POST['home_team'] ?? ''), 0, 80);
         $away  = mb_substr(trim($_POST['away_team'] ?? ''), 0, 80);
@@ -288,7 +315,17 @@ function adminMatches(): void {
         <td class="text-gold fw-bold font-sub"><?= formatCedenas((float)$m['pot_total']) ?></td>
         <td><?= (int)$m['bet_count'] ?></td>
         <td><?= (int)$m['goal_count'] ?></td>
-        <td><a href="/admin/index.php?page=goals&match_id=<?= (int)$m['id'] ?>" class="btn btn-sm btn-ghost">🥅 Goles</a></td>
+        <td style="display:flex;gap:6px">
+          <a href="/admin/index.php?page=goals&match_id=<?= (int)$m['id'] ?>" class="btn btn-sm btn-ghost">🥅 Goles</a>
+          <?php if ($m['status'] !== 'finished' || $m['bet_count'] == 0): ?>
+          <form method="POST" action="/admin/index.php?page=matches" style="display:inline">
+            <?php csrfField(); ?>
+            <input type="hidden" name="action" value="delete_match">
+            <input type="hidden" name="match_id" value="<?= (int)$m['id'] ?>">
+            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este partido? Esta acción no se puede deshacer.')">🗑 Eliminar</button>
+          </form>
+          <?php endif; ?>
+        </td>
       </tr>
       <?php endforeach; ?>
       </tbody>
