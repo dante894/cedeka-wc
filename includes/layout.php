@@ -20,12 +20,16 @@ function renderNav(?array $user): void { ?>
   <div class="nav-links">
     <a href="/index.php?page=home">🏠 <span>Inicio</span></a>
     <?php if ($user): ?>
-      <a href="/index.php?page=matches">⚽ <span>Partidos</span></a>
-      <a href="/index.php?page=my_bets">🎯 <span>Mis Apuestas</span></a>
-      <a href="/index.php?page=ranking">📊 <span>Ranking</span></a>
-      <a href="/index.php?page=wallet">💰 <span>Wallet</span></a>
       <?php if ($user['role'] === 'admin'): ?>
-        <a href="/admin/index.php" style="color:var(--gold)">👑 Admin</a>
+        <a href="/admin/index.php" style="color:var(--gold)">👑 <span>Dashboard</span></a>
+        <a href="/admin/index.php?page=matches">⚽ <span>Partidos</span></a>
+        <a href="/admin/index.php?page=recharges">💰 <span>Recargas</span></a>
+        <a href="/admin/index.php?page=users">👥 <span>Usuarios</span></a>
+      <?php else: ?>
+        <a href="/index.php?page=matches">⚽ <span>Partidos</span></a>
+        <a href="/index.php?page=my_bets">🎯 <span>Mis Apuestas</span></a>
+        <a href="/index.php?page=ranking">📊 <span>Ranking</span></a>
+        <a href="/index.php?page=wallet">💰 <span>Wallet</span></a>
       <?php endif; ?>
       <span class="nav-balance" data-tip="Saldo en Cedenas"><?= formatCedenas((float)($user['balance'] ?? 0)) ?></span>
       <!-- Avatar con dropdown -->
