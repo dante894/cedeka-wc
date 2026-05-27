@@ -5,9 +5,20 @@
 ob_start();
 require_once __DIR__ . '/../../includes/config.php';
 
-// Forzar mismo nombre de sesión
+// Configurar sesión persistente
+ini_set('session.save_path', '/tmp');
+ini_set('session.gc_maxlifetime', 7200);
 session_name('CEDEKA_SID');
-startSession();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 7200,
+        'path'     => '/',
+        'secure'   => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
 
 $clientId    = $_ENV['GOOGLE_CLIENT_ID']    ?? getenv('GOOGLE_CLIENT_ID')    ?? '';
 $redirectUri = $_ENV['GOOGLE_REDIRECT_URI'] ?? getenv('GOOGLE_REDIRECT_URI') ?? '';

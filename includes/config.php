@@ -82,7 +82,7 @@ function startSession(): void {
             'domain'   => '',
             'secure'   => $secure,
             'httponly' => true,       // JS no puede leer la cookie
-            'samesite' => 'Strict',   // Bloquea CSRF cross-site
+            'samesite' => 'Lax',   // Bloquea CSRF cross-site
         ]);
         session_name('CEDEKA_SID');
         session_start();
