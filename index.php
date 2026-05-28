@@ -726,73 +726,101 @@ function pageBet(?array $user): void {
     </div>
   </form>
 
+  <?php
+  // Pasar datos al JS via data attributes para evitar problemas con HTML insertado
+  $betData = json_encode([
+    'takenByMe' => $takenByMe,
+    'allBets'   => $allBets,
+    'homeTeam'  => $match['home_team'],
+    'awayTeam'  => $match['away_team'],
+    'minBet'    => MIN_BET,
+  ]);
+  ?>
+  <div id="betData" data-json='<?= h($betData) ?>' style="display:none"></div>
   <script>
-  const takenByMe = <?= json_encode($takenByMe) ?>;
-  const allBets   = <?= json_encode($allBets) ?>;
-  const homeTeam  = <?= json_encode($match['home_team']) ?>;
-  const awayTeam  = <?= json_encode($match['away_team']) ?>;
-  let currentTeam = '', currentMinute = 0;
+  (function() {
+    const raw  = document.getElementById('betData').getAttribute('data-json');
+    const data = JSON.parse(raw);
+    const takenByMe = data.takenByMe;
+    const allBets   = data.allBets;
+    const homeTeam  = data.homeTeam;
+    const awayTeam  = data.awayTeam;
+    const minBet    = data.minBet;
+    let currentTeam = '', currentMinute = 0;
 
-  function selectTeam(team) {
-    currentTeam = team;
-    document.getElementById('teamInput').value = team;
-    document.querySelectorAll('.team-btn').forEach(b => { b.style.borderColor='rgba(255,255,255,0.1)'; b.style.background='var(--bg3)'; b.style.boxShadow='none'; });
-    const isHome = (team === homeTeam);
-    const btn = document.getElementById(isHome ? 'btn-home' : 'btn-away');
-    if (btn) { btn.style.borderColor='var(--gold)'; btn.style.background='rgba(201,168,76,0.1)'; btn.style.boxShadow='0 0 20px rgba(201,168,76,0.2)'; }
-    buildMinuteGrid(team);
-    document.getElementById('minuteSection').style.display = 'block';
-    document.getElementById('amountSection').style.display = 'none';
-    currentMinute = 0;
-    document.getElementById('minuteInput').value = '';
-    document.getElementById('sumTeam').textContent = team;
-  }
+    window.selectTeam = function(team) {
+      currentTeam = team;
+      document.getElementById('teamInput').value = team;
+      document.querySelectorAll('.team-btn').forEach(b => {
+        b.style.borderColor = 'rgba(255,255,255,0.1)';
+        b.style.background  = 'var(--bg3)';
+        b.style.boxShadow   = 'none';
+      });
+      const isHome = (team === homeTeam);
+      const btn = document.getElementById(isHome ? 'btn-home' : 'btn-away');
+      if (btn) {
+        btn.style.borderColor = 'var(--gold)';
+        btn.style.background  = 'rgba(201,168,76,0.1)';
+        btn.style.boxShadow   = '0 0 20px rgba(201,168,76,0.2)';
+      }
+      buildMinuteGrid(team);
+      document.getElementById('minuteSection').style.display = 'block';
+      document.getElementById('amountSection').style.display = 'none';
+      currentMinute = 0;
+      document.getElementById('minuteInput').value = '';
+      document.getElementById('sumTeam').textContent = team;
+    };
 
-  function buildMinuteGrid(team) {
-    const grid = document.getElementById('minuteGrid');
-    grid.innerHTML = '';
-    for (let i = 1; i <= 90; i++) {
-      const key   = team + '_' + i;
-      const taken = takenByMe.includes(key);
-      const count = allBets[key] || 0;
-      const btn   = document.createElement('button');
-      btn.type      = 'button';
-      btn.className = 'minute-btn' + (taken ? ' taken' : '');
-      btn.textContent = i;
-      btn.title = taken ? 'Ya apostaste este minuto' : (count > 0 ? count + ' apuesta(s)' : 'Libre');
-      if (count > 0 && !taken) btn.style.opacity = '0.7';
-      if (!taken) btn.onclick = () => selectMinute(i, btn);
-      grid.appendChild(btn);
+    function buildMinuteGrid(team) {
+      const grid = document.getElementById('minuteGrid');
+      grid.innerHTML = '';
+      for (let i = 1; i <= 90; i++) {
+        const key   = team + '_' + i;
+        const taken = takenByMe.includes(key);
+        const count = allBets[key] || 0;
+        const btn   = document.createElement('button');
+        btn.type        = 'button';
+        btn.className   = 'minute-btn' + (taken ? ' taken' : '');
+        btn.textContent = i;
+        btn.title = taken ? 'Ya apostaste este minuto' : (count > 0 ? count + ' apuesta(s)' : 'Libre');
+        if (count > 0 && !taken) btn.style.opacity = '0.7';
+        if (!taken) btn.onclick = (function(min, b) { return function() { selectMinute(min, b); }; })(i, btn);
+        grid.appendChild(btn);
+      }
     }
-  }
 
-  function selectMinute(min, btn) {
-    currentMinute = min;
-    document.getElementById('minuteInput').value = min;
-    document.querySelectorAll('.minute-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    document.getElementById('selectedMinuteDisplay').textContent = '✅ Minuto ' + min + ' seleccionado';
-    document.getElementById('sumMin').textContent = 'Min ' + min;
-    document.getElementById('amountSection').style.display = 'block';
-    updateSummary();
-  }
+    function selectMinute(min, btn) {
+      currentMinute = min;
+      document.getElementById('minuteInput').value = min;
+      document.querySelectorAll('.minute-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      document.getElementById('selectedMinuteDisplay').textContent = '✅ Minuto ' + min + ' seleccionado';
+      document.getElementById('sumMin').textContent = 'Min ' + min;
+      document.getElementById('amountSection').style.display = 'block';
+      updateSummary();
+    }
 
-  function setAmount(v) { document.getElementById('amountInput').value = v; updateSummary(); }
-  document.getElementById('amountInput')?.addEventListener('input', updateSummary);
+    window.setAmount = function(v) {
+      document.getElementById('amountInput').value = v;
+      updateSummary();
+    };
 
-  function updateSummary() {
-    const amt = parseFloat(document.getElementById('amountInput')?.value || 0);
-    document.getElementById('sumAmt').textContent  = amt > 0 ? '₵ ' + amt.toFixed(2) : '—';
-    document.getElementById('sumComm').textContent = amt > 0 ? '₵ ' + (amt*0.1).toFixed(2) : '—';
-  }
+    document.getElementById('amountInput')?.addEventListener('input', updateSummary);
 
-  function validateBet() {
-    if (!currentTeam)   { alert('Selecciona un equipo'); return false; }
-    if (!currentMinute) { alert('Selecciona un minuto'); return false; }
-    const amt = parseFloat(document.getElementById('amountInput').value || 0);
-    if (amt < <?= MIN_BET ?>) { alert('Monto mínimo ₵ <?= MIN_BET ?>'); return false; }
-    return true;
-  }
+    function updateSummary() {
+      const amt = parseFloat(document.getElementById('amountInput')?.value || 0);
+      document.getElementById('sumAmt').textContent  = amt > 0 ? '₵ ' + amt.toFixed(2) : '—';
+      document.getElementById('sumComm').textContent = amt > 0 ? '₵ ' + (amt * 0.1).toFixed(2) : '—';
+    }
+
+    window.validateBet = function() {
+      if (!currentTeam)   { alert('Seleccioná un equipo'); return false; }
+      if (!currentMinute) { alert('Seleccioná un minuto'); return false; }
+      const amt = parseFloat(document.getElementById('amountInput').value || 0);
+      if (amt < minBet)   { alert('Monto mínimo ₵ ' + minBet); return false; }
+      return true;
+    };
+  })();
   </script>
   <?php endif; ?>
 </div>
