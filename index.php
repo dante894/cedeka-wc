@@ -642,6 +642,18 @@ function pageBet(?array $user): void {
   <?php endif;
   else: ?>
 
+  <?php if ((float)$user['balance'] <= 0): ?>
+  <div class="alert alert-warn mb-3">
+    ⚠️ No tenés saldo. <a href="/index.php?page=recharge" class="text-gold fw-bold">Cargá Cedenas →</a>
+  </div>
+  <?php else: ?>
+  <div class="alert alert-info mb-3" style="background:rgba(201,168,76,0.06);border-color:rgba(201,168,76,0.2);color:var(--gold)">
+    💰 Saldo disponible: <strong><?= formatCedenas((float)$user['balance']) ?></strong> &nbsp;·&nbsp;
+    🏆 Pozo actual: <strong><?= formatCedenas((float)$match['pot_total']) ?></strong> &nbsp;·&nbsp;
+    📊 Tu premio si ganás: <strong>90% del pozo ÷ ganadores</strong>
+  </div>
+  <?php endif; ?>
+
   <form method="POST" action="/index.php?page=bet" id="betForm">
     <?php csrfField(); ?>
     <input type="hidden" name="action" value="place_bet">
@@ -693,7 +705,11 @@ function pageBet(?array $user): void {
         <div class="flex-between fs-sm"><span class="text-muted">Comisión sitio (10%)</span><span class="text-muted" id="sumComm">—</span></div>
         <div class="flex-between fw-bold mt-1"><span>Premio potencial</span><span class="text-gold">Depende del pozo</span></div>
       </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg mt-3" onclick="return validateBet()">🎯 CONFIRMAR APUESTA</button>
+      <?php if ((float)$user['balance'] <= 0): ?>
+        <div class="alert alert-warn">⚠️ Sin saldo. <a href="/index.php?page=recharge" class="text-gold">Cargá Cedenas →</a></div>
+      <?php else: ?>
+        <button type="submit" class="btn btn-primary btn-block btn-lg mt-3" onclick="return validateBet()">🎯 CONFIRMAR APUESTA</button>
+      <?php endif; ?>
     </div>
   </form>
 
