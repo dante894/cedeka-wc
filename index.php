@@ -736,10 +736,10 @@ function pageBet(?array $user): void {
     'minBet'    => MIN_BET,
   ]);
   ?>
-  <div id="betData" data-json='<?= h($betData) ?>' style="display:none"></div>
+  <div id="betData" data-json="<?= base64_encode($betData) ?>" style="display:none"></div>
   <script>
   (function() {
-    const raw  = document.getElementById('betData').getAttribute('data-json');
+    const raw  = atob(document.getElementById('betData').getAttribute('data-json'));
     const data = JSON.parse(raw);
     const takenByMe = data.takenByMe;
     const allBets   = data.allBets;
