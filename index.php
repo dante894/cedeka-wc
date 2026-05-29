@@ -557,9 +557,18 @@ function pageBet(?array $user): void {
         return;
     }
 
-    $stmt = $db->prepare("SELECT team, minute FROM bets WHERE match_id=? AND user_id=?");
+    $stmt = $db->prepare("SELECT team, minute, player_name FROM bets WHERE match_id=? AND user_id=?");
     $stmt->execute([$matchId, $user['id']]);
-    $takenByMe = array_map(fn($b) => $b['team'].'_'.$b['minute'], $stmt->fetchAll());
+    $myBetsList = $stmt->fetchAll();
+    $takenByMe = array_map(fn($b) => $b['team'].'_'.$b['minute'].'_'.($b['player_name']??''), $myBetsList);
+
+    // Cargar jugadores del partido
+    $stmt = $db->prepare("SELECT * FROM match_players WHERE match_id=? ORDER BY team, jersey_number, player_name");
+    $stmt->execute([$matchId]);
+    $matchPlayers = $stmt->fetchAll();
+    $hasPlayers = !empty($matchPlayers);
+    $playersByTeam = [];
+    foreach ($matchPlayers as $p) $playersByTeam[$p['team']][] = $p;
 
     $stmt = $db->prepare("SELECT team, minute, COUNT(*) as cnt FROM bets WHERE match_id=? GROUP BY team, minute");
     $stmt->execute([$matchId]);
@@ -677,6 +686,7 @@ function pageBet(?array $user): void {
     <input type="hidden" name="match_id" value="<?= (int)$matchId ?>">
     <input type="hidden" name="team" id="teamInput" value="">
     <input type="hidden" name="minute" id="minuteInput" value="">
+    <input type="hidden" name="player_name" id="playerInput" value="">
 
     <div style="margin-bottom:12px">
       <div class="card-header">1. ELEGÍ EL EQUIPO QUE METE EL GOL</div>
@@ -702,8 +712,16 @@ function pageBet(?array $user): void {
       <div id="selectedMinuteDisplay" class="mt-2 text-center text-muted fs-sm" style="min-height:20px"></div>
     </div>
 
+    <?php if ($hasPlayers): ?>
+    <div class="card mb-3" id="playerSection" style="display:none">
+      <div class="card-header">3. ELEGÍ EL JUGADOR QUE METE EL GOL</div>
+      <div id="playerGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+      <div id="selectedPlayerDisplay" class="mt-2 text-center text-muted fs-sm" style="min-height:20px"></div>
+    </div>
+    <?php endif; ?>
+
     <div class="card mb-3" id="amountSection" style="display:none">
-      <div class="card-header">3. MONTO DE TU APUESTA</div>
+      <div class="card-header"><?= $hasPlayers ? '4' : '3' ?>. MONTO DE TU APUESTA</div>
       <div class="flex-between mb-2">
         <span class="text-muted fs-sm">Saldo disponible</span>
         <span class="text-gold fw-bold font-sub"><?= formatCedenas((float)$user['balance']) ?></span>
@@ -741,16 +759,23 @@ function pageBet(?array $user): void {
   (function() {
     const raw  = atob(document.getElementById('betData').getAttribute('data-json'));
     const data = JSON.parse(raw);
-    const takenByMe = data.takenByMe;
-    const allBets   = data.allBets;
-    const homeTeam  = data.homeTeam;
-    const awayTeam  = data.awayTeam;
-    const minBet    = data.minBet;
-    let currentTeam = '', currentMinute = 0;
+    const takenByMe     = data.takenByMe;
+    const allBets       = data.allBets;
+    const homeTeam      = data.homeTeam;
+    const awayTeam      = data.awayTeam;
+    const minBet        = data.minBet;
+    const playersByTeam = data.playersByTeam;
+    const hasPlayers    = data.hasPlayers;
+    let currentTeam = '', currentMinute = 0, currentPlayer = '';
 
     window.selectTeam = function(team) {
-      currentTeam = team;
-      document.getElementById('teamInput').value = team;
+      currentTeam   = team;
+      currentMinute = 0;
+      currentPlayer = '';
+      document.getElementById('teamInput').value   = team;
+      document.getElementById('minuteInput').value = '';
+      if (document.getElementById('playerInput')) document.getElementById('playerInput').value = '';
+
       document.querySelectorAll('.team-btn').forEach(b => {
         b.style.borderColor = 'rgba(255,255,255,0.1)';
         b.style.background  = 'var(--bg3)';
@@ -765,9 +790,8 @@ function pageBet(?array $user): void {
       }
       buildMinuteGrid(team);
       document.getElementById('minuteSection').style.display = 'block';
+      if (document.getElementById('playerSection')) document.getElementById('playerSection').style.display = 'none';
       document.getElementById('amountSection').style.display = 'none';
-      currentMinute = 0;
-      document.getElementById('minuteInput').value = '';
       document.getElementById('sumTeam').textContent = team;
     };
 
@@ -796,6 +820,45 @@ function pageBet(?array $user): void {
       btn.classList.add('selected');
       document.getElementById('selectedMinuteDisplay').textContent = '✅ Minuto ' + min + ' seleccionado';
       document.getElementById('sumMin').textContent = 'Min ' + min;
+
+      if (hasPlayers && document.getElementById('playerSection')) {
+        buildPlayerGrid(currentTeam);
+        document.getElementById('playerSection').style.display = 'block';
+        document.getElementById('amountSection').style.display = 'none';
+      } else {
+        document.getElementById('amountSection').style.display = 'block';
+      }
+      updateSummary();
+    }
+
+    function buildPlayerGrid(team) {
+      const grid    = document.getElementById('playerGrid');
+      const players = playersByTeam[team] || [];
+      grid.innerHTML = '';
+      players.forEach(p => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'background:var(--bg3);border:2px solid rgba(255,255,255,0.1);border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:all 0.2s;color:var(--text)';
+        btn.innerHTML = (p.jersey_number ? '<div style="font-family:var(--font-head);font-size:20px;color:var(--gold)">'+p.jersey_number+'</div>' : '') +
+          '<div style="font-family:var(--font-sub);font-weight:700;font-size:13px;color:#fff;margin-top:4px">'+p.player_name+'</div>' +
+          (p.position ? '<div style="font-size:10px;color:var(--text-dim);margin-top:2px">'+p.position+'</div>' : '');
+        btn.onclick = function() { selectPlayer(p.player_name, btn); };
+        grid.appendChild(btn);
+      });
+    }
+
+    function selectPlayer(name, btn) {
+      currentPlayer = name;
+      document.getElementById('playerInput').value = name;
+      document.querySelectorAll('#playerGrid button').forEach(b => {
+        b.style.borderColor = 'rgba(255,255,255,0.1)';
+        b.style.background  = 'var(--bg3)';
+        b.style.boxShadow   = 'none';
+      });
+      btn.style.borderColor = 'var(--gold)';
+      btn.style.background  = 'rgba(201,168,76,0.1)';
+      btn.style.boxShadow   = '0 0 16px rgba(201,168,76,0.2)';
+      document.getElementById('selectedPlayerDisplay').textContent = '✅ ' + name + ' seleccionado';
       document.getElementById('amountSection').style.display = 'block';
       updateSummary();
     }
@@ -816,6 +879,7 @@ function pageBet(?array $user): void {
     window.validateBet = function() {
       if (!currentTeam)   { alert('Seleccioná un equipo'); return false; }
       if (!currentMinute) { alert('Seleccioná un minuto'); return false; }
+      if (hasPlayers && !currentPlayer) { alert('Seleccioná un jugador'); return false; }
       const amt = parseFloat(document.getElementById('amountInput').value || 0);
       if (amt < minBet)   { alert('Monto mínimo ₵ ' + minBet); return false; }
       return true;

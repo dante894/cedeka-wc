@@ -277,16 +277,51 @@ function resolveMatch(int $matchId): array {
         $commission = $potTotal * SITE_COMMISSION;
         $potToShare = $potTotal - $commission;
 
-        // Buscar apuestas ganadoras
+        // Buscar apuestas ganadoras (equipo + minuto + jugador si aplica)
         $conds = []; $params = [$matchId];
         foreach ($goals as $g) {
-            $conds[]  = "(team = ? AND minute = ?)";
-            $params[] = $g['team'];
-            $params[] = (int)$g['minute'];
+            // Si el gol tiene scorer registrado, verificar también el jugador
+            if (!empty($g['scorer'])) {
+                $conds[]  = "(team = ? AND minute = ? AND (player_name = ? OR player_name IS NULL OR player_name = ''))";
+                $params[] = $g['team'];
+                $params[] = (int)$g['minute'];
+                $params[] = $g['scorer'];
+            } else {
+                $conds[]  = "(team = ? AND minute = ?)";
+                $params[] = $g['team'];
+                $params[] = (int)$g['minute'];
+            }
         }
         $stmt = $db->prepare("SELECT * FROM bets WHERE match_id = ? AND status = 'pending' AND (".implode(' OR ',$conds).")");
         $stmt->execute($params);
-        $winners = $stmt->fetchAll();
+        $allMatching = $stmt->fetchAll();
+
+        // Si hay jugador en el gol, priorizar quien acertó los 3
+        $winners = [];
+        foreach ($allMatching as $bet) {
+            foreach ($goals as $g) {
+                if ($bet['team'] === $g['team'] && (int)$bet['minute'] === (int)$g['minute']) {
+                    // Si el gol tiene scorer y la apuesta tiene jugador, deben coincidir
+                    if (!empty($g['scorer']) && !empty($bet['player_name'])) {
+                        if (strtolower(trim($bet['player_name'])) === strtolower(trim($g['scorer']))) {
+                            $winners[] = $bet;
+                            break;
+                        }
+                    } else {
+                        // Sin jugador en apuesta o gol — solo equipo+minuto
+                        $winners[] = $bet;
+                        break;
+                    }
+                }
+            }
+        }
+        // Deduplicar
+        $winnerIds = [];
+        $winners = array_filter($winners, function($b) use (&$winnerIds) {
+            if (in_array($b['id'], $winnerIds)) return false;
+            $winnerIds[] = $b['id'];
+            return true;
+        });
 
         $db->beginTransaction();
 

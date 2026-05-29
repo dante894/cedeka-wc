@@ -30,6 +30,7 @@ echo '<nav class="admin-mobile-nav">
   <a href="/admin/index.php?page=matches"   class="'.($p==='matches'?'active':'').   '">⚽ Partidos</a>
   <a href="/admin/index.php?page=match_new" class="'.($p==='match_new'?'active':'').'"  >➕ Nuevo</a>
   <a href="/admin/index.php?page=goals"     class="'.($p==='goals'?'active':'').     '">🥅 Goles</a>
+  <a href="/admin/index.php?page=players"   class="'.($p==='players'?'active':'').   '">👕 Jugadores</a>
   <a href="/admin/index.php?page=recharges" class="'.($p==='recharges'?'active':'').'"  >💰 Recargas</a>
   <a href="/admin/index.php?page=users"     class="'.($p==='users'?'active':'').     '">👥 Usuarios</a>
 </nav>';
@@ -40,6 +41,7 @@ switch ($page) {
     case 'matches':    adminMatches();   break;
     case 'match_new':  adminMatchNew();  break;
     case 'goals':      adminGoals();     break;
+    case 'players':    adminPlayers();   break;
     case 'recharges':  adminRecharges(); break;
     case 'users':      adminUsers();     break;
     default: echo '<div class="alert alert-error">Página no encontrada</div>';
@@ -80,6 +82,36 @@ function adminHandlePost(array $admin): void {
             flash('error', 'Error al eliminar el partido');
         }
         redirect('/admin/index.php?page=matches');
+    }
+
+    if ($action === 'add_player') {
+        $matchId = (int)$_POST['match_id'];
+        $team    = trim($_POST['team'] ?? '');
+        $name    = mb_substr(trim($_POST['player_name'] ?? ''), 0, 100);
+        $number  = !empty($_POST['jersey_number']) ? (int)$_POST['jersey_number'] : null;
+        $pos     = mb_substr(trim($_POST['position'] ?? ''), 0, 30);
+
+        // Verificar equipo válido
+        $stmt = $db->prepare("SELECT home_team, away_team FROM matches WHERE id=?");
+        $stmt->execute([$matchId]);
+        $m = $stmt->fetch();
+        if (!$m || !in_array($team, [$m['home_team'], $m['away_team']], true)) {
+            flash('error', 'Equipo inválido');
+            redirect('/admin/index.php?page=players&match_id='.$matchId);
+        }
+
+        $db->prepare("INSERT INTO match_players (match_id, team, player_name, jersey_number, position) VALUES (?,?,?,?,?)")
+           ->execute([$matchId, $team, $name, $number, $pos ?: null]);
+        flash('success', "Jugador agregado: $name ✅");
+        redirect('/admin/index.php?page=players&match_id='.$matchId);
+    }
+
+    if ($action === 'delete_player') {
+        $playerId = (int)$_POST['player_id'];
+        $matchId  = (int)$_POST['match_id'];
+        $db->prepare("DELETE FROM match_players WHERE id=?")->execute([$playerId]);
+        flash('success', 'Jugador eliminado');
+        redirect('/admin/index.php?page=players&match_id='.$matchId);
     }
 
     if ($action === 'add_match') {
@@ -213,6 +245,7 @@ function renderAdminSidebar(string $active): void { ?>
   <a href="/admin/index.php?page=matches"   class="sidebar-link <?= $active==='matches'?'active':'' ?>">⚽ Partidos</a>
   <a href="/admin/index.php?page=match_new" class="sidebar-link <?= $active==='match_new'?'active':'' ?>">➕ Nuevo Partido</a>
   <a href="/admin/index.php?page=goals"     class="sidebar-link <?= $active==='goals'?'active':'' ?>">🥅 Cargar Goles</a>
+  <a href="/admin/index.php?page=players"   class="sidebar-link <?= $active==='players'?'active':'' ?>">👕 Jugadores</a>
   <div class="sidebar-section">Finanzas</div>
   <a href="/admin/index.php?page=recharges" class="sidebar-link <?= $active==='recharges'?'active':'' ?>">💰 Recargas</a>
   <div class="sidebar-section"></div>
@@ -556,4 +589,120 @@ function adminUsers(): void {
     </table>
   </div>
 </div>
+<?php }
+
+// =============================================
+// ADMIN — GESTIÓN DE JUGADORES
+// =============================================
+function adminPlayers(): void {
+    $db      = getDB();
+    $matchId = (int)($_GET['match_id'] ?? 0);
+    $allMatches = $db->query("SELECT * FROM matches WHERE status IN ('open','in_progress','closed') ORDER BY match_date DESC")->fetchAll();
+    $match = null; $players = [];
+
+    if ($matchId) {
+        $stmt = $db->prepare("SELECT * FROM matches WHERE id=?"); $stmt->execute([$matchId]); $match = $stmt->fetch();
+        $stmt = $db->prepare("SELECT * FROM match_players WHERE match_id=? ORDER BY team, jersey_number, player_name"); $stmt->execute([$matchId]); $players = $stmt->fetchAll();
+    }
+?>
+<h1 class="page-title">JUGA<span>DORES</span></h1>
+<p class="page-subtitle">Cargá la lista de jugadores por partido para que los usuarios puedan apostar</p>
+<?php renderFlash(); ?>
+
+<div class="form-group mb-3" style="max-width:420px">
+  <label class="form-label">Seleccionar Partido</label>
+  <select class="form-control" onchange="location='/admin/index.php?page=players&match_id='+this.value">
+    <option value="">— Elige un partido —</option>
+    <?php foreach ($allMatches as $m): ?>
+      <option value="<?= (int)$m['id'] ?>" <?= $m['id']==$matchId?'selected':'' ?>>
+        <?= h($m['home_flag'].' '.$m['home_team'].' vs '.$m['away_team'].' '.$m['away_flag']) ?> · <?= matchStatus($m['status']) ?>
+      </option>
+    <?php endforeach; ?>
+  </select>
+</div>
+
+<?php if ($match): ?>
+<div class="grid-2" style="gap:20px;align-items:start">
+
+  <!-- Formulario agregar jugador -->
+  <div class="card">
+    <div class="card-header">➕ Agregar Jugador</div>
+    <form method="POST" action="/admin/index.php?page=players&match_id=<?= (int)$matchId ?>">
+      <?php csrfField(); ?>
+      <input type="hidden" name="action" value="add_player">
+      <input type="hidden" name="match_id" value="<?= (int)$matchId ?>">
+      <div class="form-group">
+        <label class="form-label">Equipo</label>
+        <select name="team" class="form-control" required>
+          <option value="<?= h($match['home_team']) ?>"><?= h($match['home_flag'].' '.$match['home_team']) ?> (Local)</option>
+          <option value="<?= h($match['away_team']) ?>"><?= h($match['away_flag'].' '.$match['away_team']) ?> (Visitante)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre del Jugador</label>
+        <input type="text" name="player_name" class="form-control" placeholder="Ej: Lionel Messi" required maxlength="100">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Número (opcional)</label>
+          <input type="number" name="jersey_number" class="form-control" min="1" max="99" placeholder="10">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Posición (opcional)</label>
+          <input type="text" name="position" class="form-control" placeholder="Delantero" maxlength="30">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">➕ Agregar Jugador</button>
+    </form>
+  </div>
+
+  <!-- Lista de jugadores -->
+  <div>
+    <?php
+    $homeP = array_filter($players, fn($p) => $p['team'] === $match['home_team']);
+    $awayP = array_filter($players, fn($p) => $p['team'] === $match['away_team']);
+
+    foreach ([
+        ['team' => $match['home_team'], 'flag' => $match['home_flag'], 'players' => $homeP],
+        ['team' => $match['away_team'], 'flag' => $match['away_flag'], 'players' => $awayP],
+    ] as $side):
+    ?>
+    <div class="card mb-3">
+      <div class="card-header"><?= h($side['flag'].' '.$side['team']) ?> — <?= count($side['players']) ?> jugadores</div>
+      <?php if (empty($side['players'])): ?>
+        <div class="text-muted fs-sm text-center" style="padding:16px">Sin jugadores cargados</div>
+      <?php else: ?>
+        <?php foreach ($side['players'] as $p): ?>
+        <div class="flex-between mb-2" style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <?php if ($p['jersey_number']): ?>
+              <span style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-family:var(--font-head);font-size:16px;color:var(--gold);min-width:32px;text-align:center"><?= (int)$p['jersey_number'] ?></span>
+            <?php endif; ?>
+            <div>
+              <div class="fw-bold font-sub"><?= h($p['player_name']) ?></div>
+              <?php if ($p['position']): ?><div class="text-muted fs-xs"><?= h($p['position']) ?></div><?php endif; ?>
+            </div>
+          </div>
+          <form method="POST" action="/admin/index.php?page=players&match_id=<?= (int)$matchId ?>">
+            <?php csrfField(); ?>
+            <input type="hidden" name="action" value="delete_player">
+            <input type="hidden" name="player_id" value="<?= (int)$p['id'] ?>">
+            <input type="hidden" name="match_id" value="<?= (int)$matchId ?>">
+            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar jugador?')">✕</button>
+          </form>
+        </div>
+        <?php endforeach; ?>
+      <?php endif; ?>
+    </div>
+    <?php endforeach; ?>
+
+    <?php if (count($players) > 0): ?>
+    <div class="alert alert-info fs-xs">
+      ✅ <?= count($players) ?> jugadores cargados en total. Los usuarios ya pueden apostar por jugador en este partido.
+    </div>
+    <?php endif; ?>
+  </div>
+
+</div>
+<?php endif; ?>
 <?php }
