@@ -418,11 +418,10 @@ function timeAgo(string $datetime): string {
 
 function matchStatus(string $s): string {
     return match($s) {
-        'open'        => '🟢 Abierto',
-        'in_progress' => '🔴 En vivo',
-        'closed'      => '🔒 Cerrado',
-        'finished'    => '✅ Finalizado',
-        default       => 'Desconocido',
+        'open'     => '🟢 Abierto',
+        'closed'   => '🔒 Cerrado',
+        'finished' => '✅ Finalizado',
+        default    => '🔒 Cerrado',
     };
 }
 

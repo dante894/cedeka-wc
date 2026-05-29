@@ -353,7 +353,7 @@ function pageHome(?array $user): void { ?>
 
 <?php
 $db = getDB();
-$matches = $db->query("SELECT m.*, (SELECT COUNT(*) FROM bets b WHERE b.match_id=m.id) as bet_count FROM matches m WHERE m.status IN ('open','in_progress','finished','closed') ORDER BY m.match_date ASC LIMIT 6")->fetchAll();
+$matches = $db->query("SELECT m.*, (SELECT COUNT(*) FROM bets b WHERE b.match_id=m.id) as bet_count FROM matches m WHERE m.status IN ('open','closed','finished') ORDER BY m.match_date ASC LIMIT 6")->fetchAll();
 $matchIds = array_column($matches, 'id');
 $goalsMap = [];
 if ($matchIds) {
@@ -511,7 +511,6 @@ function pageMatches(?array $user): void {
   <p class="page-subtitle">Elige tu partido y apuesta el minuto exacto del gol</p>
   <div class="flex gap-1 mb-3">
     <a href="?page=matches&tab=open" class="btn <?= $tab==='open'?'btn-primary':'btn-ghost' ?> btn-sm">🟢 Abiertos</a>
-    <a href="?page=matches&tab=live" class="btn <?= $tab==='live'?'btn-primary':'btn-ghost' ?> btn-sm">🔴 En Vivo</a>
     <a href="?page=matches&tab=done" class="btn <?= $tab==='done'?'btn-primary':'btn-ghost' ?> btn-sm">✅ Finalizados</a>
   </div>
   <?php if (empty($matches)): ?>
@@ -522,11 +521,10 @@ function pageMatches(?array $user): void {
     <a href="/index.php?page=bet&id=<?= (int)$m['id'] ?>" class="match-card status-<?= h($m['status']) ?>">
       <div class="flex-between mb-1">
         <?php echo match($m['status']) {
-            'open'        => '<span class="badge badge-open">🟢 Abierto</span>',
-            'in_progress' => '<span class="badge badge-live">🔴 En Vivo</span>',
-            'closed'      => '<span class="badge badge-closed">🔒 Cerrado</span>',
-            'finished'    => '<span class="badge badge-done">✅ Finalizado</span>',
-            default       => ''
+            'open'     => '<span class="badge badge-open">🟢 Abierto</span>',
+            'closed'   => '<span class="badge badge-closed">🔒 Cerrado</span>',
+            'finished' => '<span class="badge badge-done">✅ Finalizado</span>',
+            default    => '<span class="badge badge-closed">🔒 Cerrado</span>'
         }; ?>
         <?php if ($m['my_bets'] > 0): ?><span class="badge badge-pending">🎯 Tu apuesta</span><?php endif; ?>
       </div>
@@ -585,11 +583,10 @@ function pageBet(?array $user): void {
   <div class="card mb-3">
     <div class="flex-between mb-2">
       <?php echo match($match['status']) {
-          'open'        => '<span class="badge badge-open">🟢 Abierto</span>',
-          'in_progress' => '<span class="badge badge-live">🔴 En Vivo</span>',
-          'closed'      => '<span class="badge badge-closed">🔒 Cerrado</span>',
-          'finished'    => '<span class="badge badge-done">✅ Finalizado</span>',
-          default       => ''
+          'open'     => '<span class="badge badge-open">🟢 Abierto</span>',
+          'closed'   => '<span class="badge badge-closed">🔒 Cerrado</span>',
+          'finished' => '<span class="badge badge-done">✅ Finalizado</span>',
+          default    => '<span class="badge badge-closed">🔒 Cerrado</span>'
       }; ?>
       <span class="text-muted fs-xs"><?= date('d M Y · H:i', strtotime($match['match_date'])) ?></span>
     </div>

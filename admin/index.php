@@ -338,7 +338,7 @@ function adminMatches(): void {
             <input type="hidden" name="action" value="update_match_status">
             <input type="hidden" name="match_id" value="<?= (int)$m['id'] ?>">
             <select name="status" class="form-control" style="padding:4px 8px;font-size:12px;width:auto">
-              <?php foreach (['open','in_progress','closed','finished'] as $st): ?>
+              <?php foreach (['open','closed','finished'] as $st): ?>
                 <option value="<?= $st ?>" <?= $m['status']===$st?'selected':'' ?>><?= matchStatus($st) ?></option>
               <?php endforeach; ?>
             </select>
@@ -376,11 +376,11 @@ function adminMatchNew(): void { ?>
     <input type="hidden" name="action" value="add_match">
     <div class="form-row">
       <div class="form-group"><label class="form-label">Bandera Local</label><input type="text" name="home_flag" class="form-control" placeholder="🇧🇷" value="🏳" maxlength="10"></div>
-      <div class="form-group"><label class="form-label">Equipo Local</label><input type="text" name="home_team" class="form-control" placeholder='Brasil' required maxlength="80"></div>
+      <div class="form-group"><label class="form-label">Equipo Local</label><input type="text" name="home_team" class="form-control" placeholder="Brasil" required maxlength="80"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Bandera Visitante</label><input type="text" name="away_flag" class="form-control" placeholder="🇦🇷" value="🏳" maxlength="10"></div>
-      <div class="form-group"><label class="form-label">Equipo Visitante</label><input type="text" name="away_team" class="form-control" placeholder='Argentina' required maxlength="80"></div>
+      <div class="form-group"><label class="form-label">Equipo Visitante</label><input type="text" name="away_team" class="form-control" placeholder="Argentina" required maxlength="80"></div>
     </div>
     <div class="form-group"><label class="form-label">Fecha y Hora</label><input type="datetime-local" name="match_date" class="form-control" required></div>
     <button type="submit" class="btn btn-primary btn-block">Crear Partido ⚽</button>
@@ -391,7 +391,7 @@ function adminMatchNew(): void { ?>
 function adminGoals(): void {
     $db       = getDB();
     $matchId  = (int)($_GET['match_id'] ?? 0);
-    $allMatches = $db->query("SELECT * FROM matches WHERE status IN ('in_progress','open','closed') ORDER BY match_date DESC")->fetchAll();
+    $allMatches = $db->query("SELECT * FROM matches WHERE status IN ('open','closed') ORDER BY match_date DESC")->fetchAll();
     $match = null; $goals = []; $bets = [];
 
     if ($matchId) {
@@ -452,7 +452,7 @@ function adminGoals(): void {
     </div>
     <?php endif; ?>
 
-    <?php if (!empty($goals) && in_array($match['status'], ['in_progress','closed'], true)): ?>
+    <?php if (!empty($goals) && $match['status'] === 'closed'): ?>
     <div class="card" style="border-color:rgba(245,200,66,0.3)">
       <div class="card-header">⚡ Resolver Apuestas</div>
       <p class="text-muted fs-sm mb-3">Pozo: <strong class="text-gold"><?= formatCedenas((float)$match['pot_total']) ?></strong></p>
@@ -597,7 +597,7 @@ function adminUsers(): void {
 function adminPlayers(): void {
     $db      = getDB();
     $matchId = (int)($_GET['match_id'] ?? 0);
-    $allMatches = $db->query("SELECT * FROM matches WHERE status IN ('open','in_progress','closed') ORDER BY match_date DESC")->fetchAll();
+    $allMatches = $db->query("SELECT * FROM matches WHERE status IN ('open','closed') ORDER BY match_date DESC")->fetchAll();
     $match = null; $players = [];
 
     if ($matchId) {
