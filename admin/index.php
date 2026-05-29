@@ -376,11 +376,11 @@ function adminMatchNew(): void { ?>
     <input type="hidden" name="action" value="add_match">
     <div class="form-row">
       <div class="form-group"><label class="form-label">Bandera Local</label><input type="text" name="home_flag" class="form-control" placeholder="🇧🇷" value="🏳" maxlength="10"></div>
-      <div class="form-group"><label class="form-label">Equipo Local</label><input type="text" name="home_team" class="form-control" placeholder="Brasil" required maxlength="80"></div>
+      <div class="form-group"><label class="form-label">Equipo Local</label><input type="text" name="home_team" class="form-control" placeholder='Brasil' required maxlength="80"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Bandera Visitante</label><input type="text" name="away_flag" class="form-control" placeholder="🇦🇷" value="🏳" maxlength="10"></div>
-      <div class="form-group"><label class="form-label">Equipo Visitante</label><input type="text" name="away_team" class="form-control" placeholder="Argentina" required maxlength="80"></div>
+      <div class="form-group"><label class="form-label">Equipo Visitante</label><input type="text" name="away_team" class="form-control" placeholder='Argentina' required maxlength="80"></div>
     </div>
     <div class="form-group"><label class="form-label">Fecha y Hora</label><input type="datetime-local" name="match_date" class="form-control" required></div>
     <button type="submit" class="btn btn-primary btn-block">Crear Partido ⚽</button>
