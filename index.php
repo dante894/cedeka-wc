@@ -692,13 +692,13 @@ function pageBet(?array $user): void {
       <div class="card-header">1. ELEGÍ EL EQUIPO QUE METE EL GOL</div>
     </div>
     <div class="grid-2 mb-3" style="gap:12px">
-      <button type="button" class="team-btn" onclick="selectTeam(<?= json_encode($match['home_team']) ?>)" id="btn-home"
+      <button type="button" class="team-btn" data-team="<?= h($match['home_team']) ?>" id="btn-home"
         style="cursor:pointer;text-align:center;transition:all 0.25s;border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:24px 16px;background:var(--bg3);color:var(--text);width:100%">
         <div style="font-size:48px;line-height:1;margin-bottom:10px"><?= h($match['home_flag']) ?></div>
         <div style="font-family:var(--font-sub);font-weight:700;font-size:20px;color:#fff"><?= h($match['home_team']) ?></div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:4px;text-transform:uppercase;letter-spacing:1px">Equipo Local</div>
       </button>
-      <button type="button" class="team-btn" onclick="selectTeam(<?= json_encode($match['away_team']) ?>)" id="btn-away"
+      <button type="button" class="team-btn" data-team="<?= h($match['away_team']) ?>" id="btn-away"
         style="cursor:pointer;text-align:center;transition:all 0.25s;border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:24px 16px;background:var(--bg3);color:var(--text);width:100%">
         <div style="font-size:48px;line-height:1;margin-bottom:10px"><?= h($match['away_flag']) ?></div>
         <div style="font-family:var(--font-sub);font-weight:700;font-size:20px;color:#fff"><?= h($match['away_team']) ?></div>

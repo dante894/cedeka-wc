@@ -174,3 +174,12 @@
   };
 
 })();
+
+// Auto-bind team buttons via data-team attribute
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.team-btn[data-team]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      window.selectTeam(this.getAttribute('data-team'));
+    });
+  });
+});
