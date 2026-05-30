@@ -724,11 +724,11 @@ function pageBet(?array $user): void {
         <span class="text-gold fw-bold font-sub"><?= formatCedenas((float)$user['balance']) ?></span>
       </div>
       <div class="flex gap-1 mb-2" style="flex-wrap:wrap">
-        <?php foreach ([5,10,25,50,100,250] as $q): ?>
+        <?php foreach ([250,500,1000,2000,5000,10000] as $q): ?>
           <button type="button" class="btn btn-ghost btn-sm" onclick="setAmount(<?= $q ?>)"><?= formatCedenas($q) ?></button>
         <?php endforeach; ?>
       </div>
-      <input type="number" name="amount" id="amountInput" class="form-control" min="<?= MIN_BET ?>" max="<?= min(MAX_BET, (float)$user['balance']) ?>" step="0.01" placeholder="Monto en Cedenas (₵)" required>
+      <input type="number" name="amount" id="amountInput" class="form-control" min="250" max="<?= min(MAX_BET, (float)$user['balance']) ?>" step="1" placeholder="Mínimo ₵250" required>
       <div class="card mt-3" style="background:var(--bg3)">
         <div class="flex-between fs-sm mb-1"><span class="text-muted">Equipo</span><span id="sumTeam">—</span></div>
         <div class="flex-between fs-sm mb-1"><span class="text-muted">Minuto</span><span id="sumMin">—</span></div>

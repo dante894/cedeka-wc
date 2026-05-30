@@ -13,7 +13,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 define('SITE_NAME',        'Cedeka World Cup');
 define('SITE_COMMISSION',  0.10);
-define('MIN_BET',          1);
+define('MIN_BET',          250);
 define('MAX_BET',          10000);
 define('SESSION_LIFETIME', 7200);
 
