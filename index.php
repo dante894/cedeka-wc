@@ -253,9 +253,9 @@ function handlePost(string $page, ?array $user): void {
         $method = trim($_POST['payment_method'] ?? 'transferencia');
         $notes  = trim($_POST['receipt_notes'] ?? '');
 
-        // Validar monto
-        if ($amount < 1 || $amount > 100000) {
-            flash('error', 'Monto inválido (1 – 100,000 Cedenas)');
+        // Validar monto - mínimo $250 ARS
+        if ($amount < 250 || $amount > 1000000) {
+            flash('error', 'Monto inválido. Mínimo $250 ARS');
             redirect('/index.php?page=recharge');
         }
 
@@ -868,8 +868,10 @@ function pageWallet(?array $user): void {
 // ---- RECHARGE ----
 function pageRecharge(?array $user): void {
     $user = requireLogin();
-    $cvu  = '0000003100081060403974';
-    $alias = 'CEDEKA.WC'; // podés personalizar el alias en tu MP
+    $cvu     = '0000003100081060403974';
+    $minRecharge = 250;
+    // Link directo a MP con CVU precargado
+    $mpLink = 'https://mpago.la/send?receiver=' . $cvu;
 ?>
 <div class="page-wrap" style="max-width:600px">
   <?php renderFlash(); ?>
@@ -915,11 +917,25 @@ function pageRecharge(?array $user): void {
       </div>
     </div>
 
+    <!-- Botón directo a MP -->
+    <a href="<?= $mpLink ?>" target="_blank" class="btn btn-block btn-lg mb-3"
+       style="background:#009ee3;color:#fff;font-family:var(--font-body);font-weight:700;text-transform:none;font-size:15px;letter-spacing:0;gap:10px;border-radius:10px">
+      <svg width="22" height="22" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="24" fill="#009ee3"/>
+        <path d="M34 18H14a2 2 0 00-2 2v8a2 2 0 002 2h20a2 2 0 002-2v-8a2 2 0 00-2-2z" fill="white" opacity=".3"/>
+        <rect x="14" y="26" width="8" height="3" rx="1.5" fill="white"/>
+      </svg>
+      Transferir con Mercado Pago →
+    </a>
+    <p style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:-8px;margin-bottom:16px">
+      Te abre MP con el CVU precargado
+    </p>
+
     <!-- Montos sugeridos -->
     <div style="margin-bottom:4px">
       <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Montos sugeridos</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <?php foreach ([500,1000,2000,5000,10000,20000] as $m): ?>
+        <?php foreach ([250,500,1000,2000,5000,10000] as $m): ?>
         <div onclick="document.getElementById('amountInput').value=<?=$m?>;updatePreview(<?=$m?>)"
           style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all 0.2s"
           onmouseover="this.style.borderColor='rgba(201,168,76,0.4)'"
@@ -951,7 +967,7 @@ function pageRecharge(?array $user): void {
         <label class="form-label">¿Cuánto transferiste? (en pesos ARS)</label>
         <div style="position:relative">
           <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-family:var(--font-sub);font-weight:700">$</span>
-          <input type="number" name="amount" id="amountInput" class="form-control" min="1" max="1000000" step="1"
+          <input type="number" name="amount" id="amountInput" class="form-control" min="250" max="1000000" step="1"
                  placeholder="Ej: 1000" required style="padding-left:28px"
                  oninput="updatePreview(this.value)">
         </div>
@@ -989,8 +1005,13 @@ function pageRecharge(?array $user): void {
 function updatePreview(val) {
   const n  = parseInt(val) || 0;
   const el = document.getElementById('cedenasPreview');
-  el.textContent = '= ' + n.toLocaleString('es-AR') + ' Cedenas ₵';
-  el.style.color = n > 0 ? 'var(--gold)' : 'var(--text-dim)';
+  if (n > 0 && n < 250) {
+    el.textContent = '⚠️ Mínimo $250 ARS';
+    el.style.color = 'var(--red)';
+  } else {
+    el.textContent = n > 0 ? '= ' + n.toLocaleString('es-AR') + ' Cedenas ₵' : '= 0 Cedenas ₵';
+    el.style.color = n > 0 ? 'var(--gold)' : 'var(--text-dim)';
+  }
 }
 
 function copyToClipboard(text, btn) {
