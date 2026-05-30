@@ -407,10 +407,11 @@ function validateEmail(string $v): ?string {
 }
 
 function validateBetAmount(float $amount, float $balance): ?string {
-    if ($amount <= 0)       return 'El monto debe ser mayor a 0';
-    if ($amount < MIN_BET)  return 'Monto mínimo: '.formatCedenas(MIN_BET);
-    if ($amount > MAX_BET)  return 'Monto máximo: '.formatCedenas(MAX_BET);
-    if ($amount > $balance) return 'Saldo insuficiente';
+    if ($amount <= 0)           return 'El monto debe ser mayor a 0';
+    if ($amount < MIN_BET)      return 'Monto mínimo: '.formatCedenas(MIN_BET);
+    if ($amount > MAX_BET)      return 'Monto máximo: '.formatCedenas(MAX_BET);
+    if ($balance <= 0)          return 'No tenés saldo disponible. Cargá Cedenas primero.';
+    if ($amount > $balance)     return 'Saldo insuficiente. Tu saldo es: '.formatCedenas($balance);
     return null;
 }
 

@@ -168,7 +168,15 @@ function handlePost(string $page, ?array $user): void {
             redirect("/index.php?page=bet&id=$matchId");
         }
 
-        // Verificar apuesta duplicada
+        // Verificar máximo 3 apuestas por partido por usuario
+        $stmt = $db->prepare("SELECT COUNT(*) FROM bets WHERE user_id=? AND match_id=?");
+        $stmt->execute([$user['id'], $matchId]);
+        if ((int)$stmt->fetchColumn() >= 3) {
+            flash('error', '⚠️ Máximo 3 apuestas por partido. Ya alcanzaste el límite en este partido.');
+            redirect("/index.php?page=bet&id=$matchId");
+        }
+
+        // Verificar apuesta duplicada (mismo equipo+minuto+jugador)
         $stmt = $db->prepare("SELECT id FROM bets WHERE user_id=? AND match_id=? AND team=? AND minute=?");
         $stmt->execute([$user['id'], $matchId, $team, $minute]);
         if ($stmt->fetch()) {
@@ -671,12 +679,33 @@ function pageBet(?array $user): void {
           <div style="font-family:var(--font-head);font-size:22px;color:var(--green)">90% del pozo</div>
         </div>
       </div>
-      <?php if ((float)$user['balance'] <= 0): ?>
+      <?php
+  // Contar apuestas del usuario en este partido
+  $stmtCount = $db->prepare("SELECT COUNT(*) FROM bets WHERE user_id=? AND match_id=?");
+  $stmtCount->execute([$user['id'], $matchId]);
+  $userBetCount = (int)$stmtCount->fetchColumn();
+  $remainingBets = 3 - $userBetCount;
+  ?>
+  <?php if ($remainingBets <= 0): ?>
+  <div class="alert alert-warn">⚠️ Ya realizaste tus 3 apuestas en este partido. No podés apostar más.</div>
+  <?php elseif ($remainingBets == 1): ?>
+  <div class="alert alert-warn" style="background:rgba(255,61,90,0.08);border-color:rgba(255,61,90,0.25);color:var(--red)">
+    ⚠️ Te queda <strong>1 apuesta</strong> disponible en este partido.
+  </div>
+  <?php else: ?>
+  <div class="alert alert-info" style="background:rgba(0,229,122,0.06);border-color:rgba(0,229,122,0.15);color:var(--green)">
+    🎯 Podés hacer <strong><?= $remainingBets ?> apuesta<?= $remainingBets>1?'s':'' ?> más</strong> en este partido (máximo 3).
+  </div>
+  <?php endif; ?>
+
+  <?php if ((float)$user['balance'] <= 0): ?>
       <a href="/index.php?page=recharge" class="btn btn-primary btn-sm">+ Cargar saldo</a>
       <?php endif; ?>
     </div>
   </div>
 
+  <?php if ($remainingBets <= 0): ?>
+  <?php else: ?>
   <form method="POST" action="/index.php?page=bet" id="betForm">
     <?php csrfField(); ?>
     <input type="hidden" name="action" value="place_bet">
@@ -1327,6 +1356,128 @@ function pageRanking(?array $user): void {
       </div>
       <?php endforeach; endif; ?>
     </div>
+  </div>
+</div>
+<?php }
+
+// =============================================
+// PÁGINA CÓMO FUNCIONA
+// =============================================
+function pageComoFunciona(): void { ?>
+<div class="page-wrap" style="max-width:760px">
+  <h1 class="page-title">CÓMO <span>FUNCIONA</span></h1>
+  <p class="page-subtitle">Todo lo que necesitás saber para apostar en Cedeka WC</p>
+
+  <!-- Pasos -->
+  <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:32px">
+
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="width:48px;height:48px;background:rgba(201,168,76,0.15);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--gold);flex-shrink:0">1</div>
+        <div>
+          <div style="font-family:var(--font-sub);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:6px">Cargá tus Cedenas</div>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Transferí pesos argentinos a nuestro CVU de Mercado Pago. Cada $1 ARS = 1 Cedena ₵. El mínimo es $250 ARS. Avisanos por el formulario y acreditamos en menos de 24hs.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--blue-light)">
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="width:48px;height:48px;background:rgba(74,144,217,0.15);border:2px solid var(--blue-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--blue-light);flex-shrink:0">2</div>
+        <div>
+          <div style="font-family:var(--font-sub);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:6px">Elegí un Partido</div>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Entrá a la sección <strong style="color:#fff">Partidos</strong> y elegí cualquier partido con estado 🟢 <strong style="color:var(--green)">Abierto</strong>. Podés hacer hasta <strong style="color:#fff">3 apuestas por partido</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="width:48px;height:48px;background:rgba(0,229,122,0.1);border:2px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--green);flex-shrink:0">3</div>
+        <div>
+          <div style="font-family:var(--font-sub);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:6px">Hacé tu Apuesta</div>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Elegí <strong style="color:#fff">qué equipo mete el gol</strong>, el <strong style="color:#fff">minuto exacto</strong> (1-90) y <strong style="color:#fff">qué jugador</strong> lo convierte. Para ganar tenés que acertar los 3.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="width:48px;height:48px;background:rgba(201,168,76,0.15);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--gold);flex-shrink:0">4</div>
+        <div>
+          <div style="font-family:var(--font-sub);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:6px">Ganás el Pozo</div>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Si acertás equipo + minuto + jugador, ganás. El <strong style="color:var(--gold)">90% del pozo</strong> se reparte entre todos los ganadores. El 10% es la comisión del sitio.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Distribución del pozo -->
+  <div class="card mb-4" style="background:linear-gradient(135deg,rgba(26,58,107,0.3),rgba(201,168,76,0.08));border-color:rgba(201,168,76,0.2)">
+    <div class="card-header">💰 DISTRIBUCIÓN DEL POZO</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center">
+      <div style="background:var(--bg3);border-radius:8px;padding:16px">
+        <div style="font-family:var(--font-head);font-size:36px;color:var(--green)">90%</div>
+        <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Para los ganadores</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:16px">
+        <div style="font-family:var(--font-head);font-size:36px;color:var(--gold)">10%</div>
+        <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Comisión plataforma</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:16px">
+        <div style="font-family:var(--font-head);font-size:36px;color:var(--blue-light)">3</div>
+        <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Apuestas máx. por partido</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reglas -->
+  <div class="card mb-4">
+    <div class="card-header">📋 REGLAS IMPORTANTES</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <?php
+      $rules = [
+        ['🎯', 'Para ganar hay que acertar equipo + minuto exacto + jugador'],
+        ['⚽', 'Si nadie acierta, el pozo se acumula al siguiente partido'],
+        ['🔒', 'Cuando el partido cierra ya no se aceptan más apuestas'],
+        ['💰', 'El mínimo de apuesta es ₵250 (equivale a $250 ARS)'],
+        ['📱', 'Una sola sesión activa por usuario a la vez'],
+        ['🏆', 'Si varios aciertan, el premio se divide en partes iguales'],
+        ['⚡', 'Los premios se acreditan automáticamente en tu wallet'],
+        ['🎮', 'Máximo 3 apuestas por partido por usuario'],
+      ];
+      foreach ($rules as $r): ?>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg3);border-radius:8px">
+        <span style="font-size:20px;flex-shrink:0"><?= $r[0] ?></span>
+        <span style="font-size:14px;color:var(--text-dim)"><?= $r[1] ?></span>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+
+  <!-- Estados del partido -->
+  <div class="card mb-4">
+    <div class="card-header">🚦 ESTADOS DE UN PARTIDO</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:8px">
+        <span class="badge badge-open">🟢 Abierto</span>
+        <span style="font-size:14px;color:var(--text-dim)">Podés realizar tus apuestas</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:8px">
+        <span class="badge badge-closed">🔒 Cerrado</span>
+        <span style="font-size:14px;color:var(--text-dim)">No se aceptan más apuestas. El admin carga los goles.</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:8px">
+        <span class="badge badge-done">✅ Finalizado</span>
+        <span style="font-size:14px;color:var(--text-dim)">Ganadores determinados y premios acreditados</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center">
+    <a href="/index.php?page=matches" class="btn btn-primary btn-lg">⚽ Ir a Apostar</a>
+    <a href="/index.php?page=recharge" class="btn btn-ghost btn-lg" style="margin-left:10px">💰 Cargar Cedenas</a>
   </div>
 </div>
 <?php }

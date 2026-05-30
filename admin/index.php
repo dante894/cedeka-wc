@@ -57,6 +57,37 @@ function adminHandlePost(array $admin): void {
     $db     = getDB();
     $action = $_POST['action'] ?? '';
 
+    if ($action === 'edit_bet') {
+        $betId    = (int)$_POST['bet_id'];
+        $newTeam  = trim($_POST['new_team']   ?? '');
+        $newMin   = (int)$_POST['new_minute'] ?? 0;
+        $newPlayer= mb_substr(trim($_POST['new_player'] ?? ''), 0, 100);
+        $reason   = mb_substr(trim($_POST['reason'] ?? ''), 0, 255);
+
+        // Obtener apuesta y partido
+        $stmt = $db->prepare("SELECT b.*, m.home_team, m.away_team FROM bets b JOIN matches m ON b.match_id=m.id WHERE b.id=?");
+        $stmt->execute([$betId]);
+        $bet = $stmt->fetch();
+        if (!$bet) { flash('error', 'Apuesta no encontrada'); redirect('/admin/index.php?page=bets'); }
+
+        // Validar equipo
+        if (!in_array($newTeam, [$bet['home_team'], $bet['away_team']], true)) {
+            flash('error', 'Equipo inválido'); redirect('/admin/index.php?page=bets');
+        }
+        if ($newMin < 1 || $newMin > 120) { // hasta 120 para penales
+            flash('error', 'Minuto inválido (1-120)'); redirect('/admin/index.php?page=bets');
+        }
+
+        $db->prepare("UPDATE bets SET team=?, minute=?, player_name=? WHERE id=?")
+           ->execute([$newTeam, $newMin, $newPlayer ?: null, $betId]);
+
+        // Log en descripción de transacción
+        error_log("[ADMIN EDIT BET] bet_id=$betId team=$newTeam min=$newMin reason=$reason admin={$admin['id']}");
+
+        flash('success', "Apuesta #{$betId} modificada ✅");
+        redirect('/admin/index.php?page=goals&match_id='.$bet['match_id']);
+    }
+
     if ($action === 'delete_match') {
         $matchId = (int)$_POST['match_id'];
 
@@ -484,11 +515,18 @@ function adminGoals(): void {
           <td class="fs-sm fw-bold font-sub"><?= h($b['team']) ?></td>
           <td><span class="badge <?= $isWinner?'badge-won':'badge-pending' ?>">Min <?= (int)$b['minute'] ?></span></td>
           <td><?= formatCedenas((float)$b['amount_cedenas']) ?></td>
-          <td><?php
-            if ($b['status']==='won')  echo '<span class="badge badge-won">🏆</span>';
-            elseif ($b['status']==='lost') echo '<span class="badge badge-lost">❌</span>';
-            else echo '<span class="badge badge-pending">⏳</span>';
-          ?></td>
+          <td>
+            <?php
+              if ($b['status']==='won')  echo '<span class="badge badge-won">🏆</span>';
+              elseif ($b['status']==='lost') echo '<span class="badge badge-lost">❌</span>';
+              else echo '<span class="badge badge-pending">⏳</span>';
+            ?>
+          </td>
+          <td>
+            <?php if ($b['status']==='pending'): ?>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openEditBet(<?= (int)$b['id'] ?>, <?= json_encode($b['team']) ?>, <?= (int)$b['minute'] ?>, <?= json_encode($b['player_name'] ?? '') ?>)" style="font-size:11px">✏️</button>
+            <?php endif; ?>
+          </td>
         </tr>
         <?php endforeach; ?>
         </tbody>
