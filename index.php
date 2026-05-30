@@ -1003,3 +1003,309 @@ function copyToClipboard(text, btn) {
 }
 </script>
 <?php }
+
+
+
+// =============================================
+// PAGE 404
+// =============================================
+function page404(): void { ?>
+<div class="page-wrap text-center" style="padding-top:80px">
+  <div style="font-size:80px">⚽</div>
+  <h1 class="page-title mt-2">404</h1>
+  <p class="text-muted">Página no encontrada</p>
+  <a href="/index.php" class="btn btn-primary mt-3">Volver al Inicio</a>
+</div>
+<?php }
+
+// =============================================
+// PÁGINA DE PERFIL
+// =============================================
+function pageProfile(?array $user): void {
+    $user = requireLogin();
+    $db   = getDB();
+
+    $stmt = $db->prepare("SELECT COUNT(*) FROM bets WHERE user_id=?"); $stmt->execute([$user['id']]); $totalBets = (int)$stmt->fetchColumn();
+    $stmt = $db->prepare("SELECT COUNT(*) FROM bets WHERE user_id=? AND status='won'"); $stmt->execute([$user['id']]); $wonBets = (int)$stmt->fetchColumn();
+    $stmt = $db->prepare("SELECT COALESCE(SUM(prize_cedenas),0) FROM bets WHERE user_id=? AND status='won'"); $stmt->execute([$user['id']]); $totalWon = (float)$stmt->fetchColumn();
+    $stmt = $db->prepare("SELECT COALESCE(SUM(amount_cedenas),0) FROM bets WHERE user_id=?"); $stmt->execute([$user['id']]); $totalBet = (float)$stmt->fetchColumn();
+
+    $winRate = $totalBets > 0 ? round(($wonBets / $totalBets) * 100, 1) : 0;
+    $roi     = $totalBet  > 0 ? round((($totalWon - $totalBet) / $totalBet) * 100, 1) : 0;
+
+    $stmt = $db->prepare("SELECT b.*, m.home_team, m.away_team FROM bets b JOIN matches m ON b.match_id=m.id WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 5");
+    $stmt->execute([$user['id']]);
+    $recentBets = $stmt->fetchAll();
+
+    $avatars = ['⚽','🏆','🥅','👟','🦅','🔥','⭐','🎯','🦁','🐉','💎','🚀','🌟','⚡','🏅'];
+?>
+<div class="page-wrap" style="max-width:800px">
+  <?php renderFlash(); ?>
+
+  <div class="card mb-3" style="background:linear-gradient(135deg,var(--bg2) 0%,rgba(26,58,107,0.3) 100%);border-color:rgba(201,168,76,0.2)">
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div style="width:80px;height:80px;background:var(--bg3);border:2px solid rgba(201,168,76,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;flex-shrink:0">
+        <?= h($user['avatar']) ?>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--font-head);font-size:28px;letter-spacing:2px;color:#fff"><?= h($user['full_name']) ?></div>
+        <div style="color:var(--text-dim);font-size:13px">@<?= h($user['username']) ?> · <?= h($user['email']) ?></div>
+        <div style="margin-top:6px">
+          <span class="badge <?= $user['role']==='admin'?'badge-live':'badge-open' ?>"><?= $user['role']==='admin'?'👑 Admin':'⚽ Jugador' ?></span>
+          <span class="badge badge-pending" style="margin-left:6px">Desde <?= date('M Y', strtotime($user['created_at'])) ?></span>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--font-head);font-size:36px;color:var(--gold);text-shadow:var(--glow-gold)"><?= formatCedenas((float)$user['balance']) ?></div>
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px">Saldo disponible</div>
+        <a href="/index.php?page=recharge" class="btn btn-primary btn-sm mt-1">+ Cargar</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+    <div class="stat-box"><div class="stat-value"><?= $totalBets ?></div><div class="stat-label">Apuestas</div></div>
+    <div class="stat-box"><div class="stat-value text-green"><?= $wonBets ?></div><div class="stat-label">Ganadas</div></div>
+    <div class="stat-box"><div class="stat-value" style="font-size:26px"><?= $winRate ?>%</div><div class="stat-label">Win Rate</div></div>
+    <div class="stat-box"><div class="stat-value text-gold" style="font-size:22px"><?= formatCedenas($totalWon) ?></div><div class="stat-label">Total Ganado</div></div>
+    <div class="stat-box"><div class="stat-value" style="font-size:22px"><?= formatCedenas($totalBet) ?></div><div class="stat-label">Total Apostado</div></div>
+    <div class="stat-box"><div class="stat-value <?= $roi>=0?'text-green':'text-red' ?>" style="font-size:26px"><?= $roi>=0?'+':'' ?><?= $roi ?>%</div><div class="stat-label">ROI</div></div>
+  </div>
+
+  <div class="grid-2" style="gap:20px;align-items:start">
+    <div>
+      <div class="card mb-3">
+        <div class="card-header">✏️ Editar Perfil</div>
+        <form method="POST" action="/index.php?page=profile">
+          <?php csrfField(); ?>
+          <input type="hidden" name="action" value="update_profile">
+          <div class="form-group">
+            <label class="form-label">Nombre completo</label>
+            <input type="text" name="full_name" class="form-control" value="<?= h($user['full_name']) ?>" required maxlength="80">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Elige tu avatar</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+              <?php foreach ($avatars as $av): ?>
+              <label style="cursor:pointer">
+                <input type="radio" name="avatar" value="<?= h($av) ?>" <?= $user['avatar']===$av?'checked':'' ?> style="display:none">
+                <div onclick="selectAvatar(this)" style="width:42px;height:42px;background:var(--bg3);border:2px solid <?= $user['avatar']===$av?'var(--gold)':'var(--border)' ?>;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;transition:all 0.15s">
+                  <?= $av ?>
+                </div>
+              </label>
+              <?php endforeach; ?>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Guardar Cambios</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header">🔒 Cambiar Contraseña</div>
+        <form method="POST" action="/index.php?page=profile">
+          <?php csrfField(); ?>
+          <input type="hidden" name="action" value="change_password">
+          <div class="form-group">
+            <label class="form-label">Contraseña actual</label>
+            <input type="password" name="current_password" class="form-control" required autocomplete="current-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nueva contraseña</label>
+            <input type="password" name="new_password" class="form-control" required minlength="8" autocomplete="new-password" placeholder="Mín 8 · 1 mayús · 1 número">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmar nueva</label>
+            <input type="password" name="confirm_password" class="form-control" required autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-ghost btn-block">Cambiar Contraseña 🔒</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">🎯 Últimas Apuestas</div>
+      <?php if (empty($recentBets)): ?>
+        <div class="empty-state" style="padding:24px"><div class="icon">🎯</div><h3>Sin apuestas aún</h3><a href="/index.php?page=matches" class="btn btn-primary btn-sm mt-2">Apostar ahora</a></div>
+      <?php else: ?>
+        <?php foreach ($recentBets as $b): ?>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-size:13px;font-weight:600"><?= h($b['team']) ?> <span class="badge badge-pending">Min <?= (int)$b['minute'] ?></span></div>
+            <div style="font-size:11px;color:var(--text-dim)"><?= h($b['home_team']) ?> vs <?= h($b['away_team']) ?></div>
+          </div>
+          <div><?php
+            if ($b['status']==='won')  echo '<span class="badge badge-won">🏆 +'.formatCedenas((float)$b['prize_cedenas']).'</span>';
+            elseif ($b['status']==='lost') echo '<span class="badge badge-lost">❌ -'.formatCedenas((float)$b['amount_cedenas']).'</span>';
+            else echo '<span class="badge badge-pending">⏳ '.formatCedenas((float)$b['amount_cedenas']).'</span>';
+          ?></div>
+        </div>
+        <?php endforeach; ?>
+        <a href="/index.php?page=my_bets" class="btn btn-ghost btn-block btn-sm mt-2">Ver todas →</a>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
+<script>
+function selectAvatar(el) {
+  document.querySelectorAll('[onclick="selectAvatar(this)"]').forEach(a => { a.style.borderColor='var(--border)'; a.style.boxShadow='none'; });
+  el.style.borderColor = 'var(--gold)';
+  el.style.boxShadow   = 'var(--glow-gold)';
+  el.previousElementSibling.checked = true;
+}
+</script>
+<?php }
+
+// =============================================
+// PÁGINA DE RANKING
+// =============================================
+function pageRanking(?array $user): void {
+    $db = getDB();
+
+    $stats = [
+        'total_bets'    => (int)$db->query("SELECT COUNT(*) FROM bets")->fetchColumn(),
+        'total_won'     => (int)$db->query("SELECT COUNT(*) FROM bets WHERE status='won'")->fetchColumn(),
+        'total_prizes'  => (float)$db->query("SELECT COALESCE(SUM(prize_cedenas),0) FROM bets WHERE status='won'")->fetchColumn(),
+        'total_players' => (int)$db->query("SELECT COUNT(*) FROM users WHERE role='user'")->fetchColumn(),
+        'active_pot'    => (float)$db->query("SELECT COALESCE(SUM(pot_total),0) FROM matches WHERE status='open'")->fetchColumn(),
+    ];
+
+    $rankingGanancias = $db->query("
+        SELECT u.username, u.avatar, u.full_name,
+               COUNT(b.id) as total_bets,
+               SUM(CASE WHEN b.status='won' THEN 1 ELSE 0 END) as won_bets,
+               COALESCE(SUM(b.prize_cedenas),0) as total_won,
+               ROUND(SUM(CASE WHEN b.status='won' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(b.id),0),1) as win_rate
+        FROM users u LEFT JOIN bets b ON u.id=b.user_id
+        WHERE u.role='user' GROUP BY u.id HAVING total_bets>0 ORDER BY total_won DESC LIMIT 20
+    ")->fetchAll();
+
+    $rankingWinRate = $db->query("
+        SELECT u.username, u.avatar,
+               COUNT(b.id) as total_bets,
+               SUM(CASE WHEN b.status='won' THEN 1 ELSE 0 END) as won_bets,
+               COALESCE(SUM(b.prize_cedenas),0) as total_won,
+               ROUND(SUM(CASE WHEN b.status='won' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(b.id),0),1) as win_rate
+        FROM users u LEFT JOIN bets b ON u.id=b.user_id
+        WHERE u.role='user' GROUP BY u.id HAVING total_bets>=3 ORDER BY win_rate DESC, total_won DESC LIMIT 10
+    ")->fetchAll();
+
+    $hotMinutes = $db->query("SELECT minute, COUNT(*) as cnt FROM bets GROUP BY minute ORDER BY cnt DESC LIMIT 10")->fetchAll();
+    $hotTeams   = $db->query("SELECT team, COUNT(*) as cnt, SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) as wins FROM bets GROUP BY team ORDER BY cnt DESC LIMIT 8")->fetchAll();
+
+    $myStats = null;
+    if ($user && $user['role'] !== 'admin') {
+        $stmt = $db->prepare("SELECT COUNT(*) as total_bets, SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) as won_bets, COALESCE(SUM(prize_cedenas),0) as total_won FROM bets WHERE user_id=?");
+        $stmt->execute([$user['id']]);
+        $myStats = $stmt->fetch();
+    }
+?>
+<div class="page-wrap-wide">
+  <h1 class="page-title">RANKING <span>&amp; STATS</span></h1>
+  <p class="page-subtitle">Estadísticas globales y los mejores jugadores</p>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px">
+    <div class="stat-box"><div class="stat-value"><?= number_format($stats['total_players']) ?></div><div class="stat-label">Jugadores</div></div>
+    <div class="stat-box"><div class="stat-value"><?= number_format($stats['total_bets']) ?></div><div class="stat-label">Apuestas</div></div>
+    <div class="stat-box"><div class="stat-value text-gold"><?= formatCedenas($stats['active_pot']) ?></div><div class="stat-label">En juego</div></div>
+    <div class="stat-box"><div class="stat-value text-green"><?= formatCedenas($stats['total_prizes']) ?></div><div class="stat-label">Repartido</div></div>
+  </div>
+
+  <?php if ($myStats && (int)$myStats['total_bets'] > 0): ?>
+  <div class="card mb-4" style="background:linear-gradient(135deg,rgba(26,58,107,0.3),rgba(201,168,76,0.08));border-color:rgba(201,168,76,0.25)">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="font-size:40px"><?= h($user['avatar']) ?></div>
+      <div style="flex:1"><div style="font-family:var(--font-sub);font-weight:700;font-size:16px;color:var(--gold)">TU RENDIMIENTO</div><div style="font-size:13px;color:var(--text-dim)">@<?= h($user['username']) ?></div></div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div style="text-align:center"><div style="font-family:var(--font-head);font-size:28px;color:#fff"><?= (int)$myStats['total_bets'] ?></div><div style="font-size:10px;color:var(--text-dim);text-transform:uppercase">Apuestas</div></div>
+        <div style="text-align:center"><div style="font-family:var(--font-head);font-size:28px;color:var(--green)"><?= (int)$myStats['won_bets'] ?></div><div style="font-size:10px;color:var(--text-dim);text-transform:uppercase">Ganadas</div></div>
+        <div style="text-align:center"><div style="font-family:var(--font-head);font-size:28px;color:var(--gold)"><?= formatCedenas((float)$myStats['total_won']) ?></div><div style="font-size:10px;color:var(--text-dim);text-transform:uppercase">Ganado</div></div>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <div class="grid-2" style="gap:20px;margin-bottom:20px">
+    <div class="card">
+      <div class="card-header">🏆 TOP GANADORES</div>
+      <?php if (empty($rankingGanancias)): ?>
+        <div class="empty-state" style="padding:24px"><div class="icon">🏆</div><h3>Sin datos aún</h3></div>
+      <?php else: ?>
+      <?php foreach ($rankingGanancias as $i => $p):
+        $medal = match($i) { 0=>'🥇', 1=>'🥈', 2=>'🥉', default=>'#'.($i+1) };
+        $isMe  = $user && $user['username']===$p['username'];
+      ?>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);<?= $isMe?'background:rgba(201,168,76,0.05);margin:0 -16px;padding:10px 16px;':'' ?>">
+        <div style="font-size:<?= $i<3?'22px':'14px' ?>;width:28px;text-align:center;font-family:var(--font-head);color:var(--text-dim)"><?= $medal ?></div>
+        <div style="font-size:24px"><?= h($p['avatar']) ?></div>
+        <div style="flex:1"><div style="font-family:var(--font-sub);font-weight:700;font-size:14px;<?= $isMe?'color:var(--gold)':'' ?>"><?= h($p['username']) ?><?= $isMe?' ← vos':'' ?></div><div style="font-size:11px;color:var(--text-dim)"><?= $p['total_bets'] ?> apuestas · <?= $p['win_rate'] ?>% win</div></div>
+        <div style="font-family:var(--font-head);font-size:18px;color:var(--gold)"><?= formatCedenas((float)$p['total_won']) ?></div>
+      </div>
+      <?php endforeach; ?>
+      <?php endif; ?>
+    </div>
+
+    <div class="card">
+      <div class="card-header">🎯 TOP WIN RATE — Mín. 3 apuestas</div>
+      <?php if (empty($rankingWinRate)): ?>
+        <div class="empty-state" style="padding:24px"><div class="icon">🎯</div><h3>Sin datos aún</h3></div>
+      <?php else: ?>
+      <?php foreach ($rankingWinRate as $i => $p):
+        $medal = match($i) { 0=>'🥇', 1=>'🥈', 2=>'🥉', default=>'#'.($i+1) };
+      ?>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:<?= $i<3?'22px':'14px' ?>;width:28px;text-align:center"><?= $medal ?></div>
+        <div style="font-size:24px"><?= h($p['avatar']) ?></div>
+        <div style="flex:1"><div style="font-family:var(--font-sub);font-weight:700;font-size:14px"><?= h($p['username']) ?></div><div style="font-size:11px;color:var(--text-dim)"><?= $p['won_bets'] ?>/<?= $p['total_bets'] ?> acertadas</div></div>
+        <div style="font-family:var(--font-head);font-size:22px;color:var(--green)"><?= $p['win_rate'] ?>%</div>
+      </div>
+      <?php endforeach; ?>
+      <?php endif; ?>
+    </div>
+  </div>
+
+  <div class="grid-2" style="gap:20px">
+    <div class="card">
+      <div class="card-header">⏱ MINUTOS MÁS APOSTADOS</div>
+      <?php if (empty($hotMinutes)): ?>
+        <div class="empty-state" style="padding:24px"><div class="icon">⏱</div><h3>Sin datos aún</h3></div>
+      <?php else:
+        $maxCnt = max(array_column($hotMinutes, 'cnt'));
+        foreach ($hotMinutes as $m):
+          $pct = $maxCnt > 0 ? ($m['cnt'] / $maxCnt) * 100 : 0;
+      ?>
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-family:var(--font-sub);font-weight:700;font-size:13px">Minuto <?= (int)$m['minute'] ?></span>
+          <span style="font-size:12px;color:var(--text-dim)"><?= (int)$m['cnt'] ?> apuestas</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">
+          <div style="width:<?= $pct ?>%;background:linear-gradient(90deg,var(--blue2),var(--gold));height:100%;border-radius:4px"></div>
+        </div>
+      </div>
+      <?php endforeach; endif; ?>
+    </div>
+
+    <div class="card">
+      <div class="card-header">🏳 EQUIPOS MÁS APOSTADOS</div>
+      <?php if (empty($hotTeams)): ?>
+        <div class="empty-state" style="padding:24px"><div class="icon">🏳</div><h3>Sin datos aún</h3></div>
+      <?php else:
+        $maxT = max(array_column($hotTeams, 'cnt'));
+        foreach ($hotTeams as $t):
+          $pct = $maxT > 0 ? ($t['cnt'] / $maxT) * 100 : 0;
+          $wr  = $t['cnt'] > 0 ? round(($t['wins'] / $t['cnt']) * 100, 1) : 0;
+      ?>
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-family:var(--font-sub);font-weight:700;font-size:13px"><?= h($t['team']) ?></span>
+          <span style="font-size:11px;color:var(--text-dim)"><?= (int)$t['cnt'] ?> · <?= $wr ?>% acertaron</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">
+          <div style="width:<?= $pct ?>%;background:linear-gradient(90deg,var(--gold),var(--gold2));height:100%;border-radius:4px"></div>
+        </div>
+      </div>
+      <?php endforeach; endif; ?>
+    </div>
+  </div>
+</div>
+<?php }
