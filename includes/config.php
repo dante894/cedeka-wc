@@ -110,19 +110,41 @@ function getCurrentUser(): ?array {
     $db   = getDB();
     $stmt = $db->prepare("SELECT u.*, w.balance FROM users u LEFT JOIN wallets w ON u.id = w.user_id WHERE u.id = ?");
     $stmt->execute([$_SESSION['user_id']]);
-    return $stmt->fetch() ?: null;
+    $user = $stmt->fetch();
+    if (!$user) return null;
+
+    // Verificar que el token de sesión coincide (single session)
+    $sessionToken = $_SESSION['session_token'] ?? '';
+    if (!empty($user['session_token']) && !empty($sessionToken)) {
+        if (!hash_equals($user['session_token'], $sessionToken)) {
+            // Otra ventana/dispositivo inició sesión — cerrar esta
+            logoutUser();
+            return null;
+        }
+    }
+
+    return $user;
 }
 
 function loginUser(int $userId): void {
     startSession();
-    session_regenerate_id(true);   // Evita session fixation
+    session_regenerate_id(true);
+
+    // Generar token único de sesión
+    $sessionToken = bin2hex(random_bytes(32));
+
     $_SESSION['user_id']      = $userId;
     $_SESSION['ua_hash']      = md5($_SERVER['HTTP_USER_AGENT'] ?? '');
     $_SESSION['ip']           = getClientIP();
     $_SESSION['login_at']     = time();
     $_SESSION['last_activity']= time();
-    // Rotar CSRF token al iniciar sesión
     $_SESSION['csrf_token']   = bin2hex(random_bytes(32));
+    $_SESSION['session_token']= $sessionToken;
+
+    // Guardar token en BD — invalida sesiones anteriores
+    $db = getDB();
+    $db->prepare("UPDATE users SET session_token=?, session_at=NOW() WHERE id=?")
+       ->execute([$sessionToken, $userId]);
 }
 
 function logoutUser(): void {
