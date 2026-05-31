@@ -6,7 +6,6 @@ ob_start();
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/includes/telegram.php';
-require_once __DIR__ . '/includes/telegram.php';
 
 
 startSession();
@@ -38,11 +37,7 @@ switch ($page) {
     case 'wallet':   pageWallet($user);   break;
     case 'recharge': pageRecharge($user); break;
     case 'profile':  pageProfile($user);  break;
-    case 'ranking':   pageRanking($user);  break;
-    case 'profile':  pageProfile($user);  break;
-    case 'ranking':   pageRanking($user);  break;
-    case 'profile':  pageProfile($user);  break;
-    case 'ranking':   pageRanking($user);  break;
+    case 'ranking':  pageRanking($user);  break;
     default:         page404();
 }
 
