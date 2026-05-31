@@ -698,14 +698,12 @@ function pageBet(?array $user): void {
   </div>
   <?php endif; ?>
 
-  <?php if ((float)$user['balance'] <= 0): ?>
+      <?php if ((float)$user['balance'] <= 0): ?>
       <a href="/index.php?page=recharge" class="btn btn-primary btn-sm">+ Cargar saldo</a>
       <?php endif; ?>
     </div>
   </div>
 
-  <?php if ($remainingBets <= 0): ?>
-  <?php else: ?>
   <form method="POST" action="/index.php?page=bet" id="betForm">
     <?php csrfField(); ?>
     <input type="hidden" name="action" value="place_bet">
@@ -814,6 +812,7 @@ function pageMyBets(?array $user): void {
       <table class="data-table">
         <thead><tr><th>Partido</th><th>Equipo</th><th>Min</th><th>Apuesta</th><th>Estado</th><th>Premio</th><th>Fecha</th></tr></thead>
         <tbody>
+          
         <?php foreach ($bets as $b): ?>
         <tr>
           <td class="fs-sm"><?= h($b['home_flag']) ?> <?= h($b['home_team']) ?> <span class="text-muted">vs</span> <?= h($b['away_team']) ?> <?= h($b['away_flag']) ?></td>
