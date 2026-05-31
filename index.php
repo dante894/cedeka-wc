@@ -769,18 +769,20 @@ function pageBet(?array $user): void {
       <button type="submit" class="btn btn-primary btn-block btn-lg mt-3" onclick="return validateBet()">🎯 CONFIRMAR APUESTA</button>
     </div>
   </form>
+  <?php endif; // end remainingBets check ?>
+  <?php endif; // end status check ?>
 
   <?php
-  // Pasar datos al JS via data attributes para evitar problemas con HTML insertado
   $betData = json_encode([
-    'takenByMe' => $takenByMe,
-    'allBets'   => $allBets,
-    'homeTeam'  => $match['home_team'],
-    'awayTeam'  => $match['away_team'],
-    'minBet'    => MIN_BET,
+    'takenByMe'     => $takenByMe,
+    'allBets'       => $allBets,
+    'homeTeam'      => $match['home_team'],
+    'awayTeam'      => $match['away_team'],
+    'minBet'        => MIN_BET,
+    'playersByTeam' => $playersByTeam,
+    'hasPlayers'    => $hasPlayers,
   ]);
   ?>
-  <?php endif; // end status check - close the form area ?>
   <div id="betData" data-json="<?= base64_encode($betData) ?>" style="display:none"></div>
   <script src="/assets/js/bet.js" defer></script>
 </div>
