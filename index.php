@@ -5,9 +5,11 @@ ob_start();
 // =============================================
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/layout.php';
-require_once __DIR__ . '/includes/telegram.php';
-require_once __DIR__ . '/includes/telegram.php';
+require_once __DIR__ . '/includes/telegram.php'; // FIX #1: eliminado el require_once duplicado
 
+// Lista canónica de avatares — usada en handlePost y pageProfile
+// FIX #7: un único array compartido para evitar desincronización
+define('AVATARS', ['⚽','🏆','🥅','👟','🦅','🔥','⭐','🎯','🦁','🐉','💎','🚀','🌟','⚡','🏅','🎪','🦊','🎭']);
 
 startSession();
 $page = $_GET['page'] ?? 'home';
@@ -28,22 +30,21 @@ renderHead(ucfirst($page));
 renderNav($user);
 echo '<main>';
 
+// FIX #2: eliminados los case duplicados de profile/ranking
+// FIX #3: agregado case 'como_funciona' que faltaba en el router
 switch ($page) {
-    case 'home':     pageHome($user);     break;
-    case 'login':    pageLogin();         break;
-    case 'register': pageRegister();      break;
-    case 'matches':  pageMatches($user);  break;
-    case 'bet':      pageBet($user);      break;
-    case 'my_bets':  pageMyBets($user);   break;
-    case 'wallet':   pageWallet($user);   break;
-    case 'recharge': pageRecharge($user); break;
-    case 'profile':  pageProfile($user);  break;
-    case 'ranking':   pageRanking($user);  break;
-    case 'profile':  pageProfile($user);  break;
-    case 'ranking':   pageRanking($user);  break;
-    case 'profile':  pageProfile($user);  break;
-    case 'ranking':   pageRanking($user);  break;
-    default:         page404();
+    case 'home':          pageHome($user);          break;
+    case 'login':         pageLogin();               break;
+    case 'register':      pageRegister();            break;
+    case 'matches':       pageMatches($user);        break;
+    case 'bet':           pageBet($user);            break;
+    case 'my_bets':       pageMyBets($user);         break;
+    case 'wallet':        pageWallet($user);         break;
+    case 'recharge':      pageRecharge($user);       break;
+    case 'profile':       pageProfile($user);        break;
+    case 'ranking':       pageRanking($user);        break;
+    case 'como_funciona': pageComoFunciona();        break;
+    default:              page404();
 }
 
 echo '</main>';
@@ -104,27 +105,25 @@ function handlePost(string $page, ?array $user): void {
         $pass  = $_POST['password'] ?? '';
         $pass2 = $_POST['password2'] ?? '';
 
-        // Validar cada campo con helpers
         if ($err = validateUsername($uname))   { flash('error', $err); redirect('/index.php?page=register'); }
         if ($err = validateEmail($email))       { flash('error', $err); redirect('/index.php?page=register'); }
         if ($err = validatePassword($pass))     { flash('error', $err); redirect('/index.php?page=register'); }
         if ($pass !== $pass2)                   { flash('error', 'Las contraseñas no coinciden'); redirect('/index.php?page=register'); }
         if (strlen($name) < 2 || strlen($name) > 80) { flash('error', 'Nombre inválido'); redirect('/index.php?page=register'); }
 
-        $avatars = ['⚽','🏆','🥅','👟','🦅','🔥','⭐','🎯'];
-        $hash    = password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]);
-        $ip      = getClientIP();
+        $avatarList = AVATARS;
+        $hash = password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]);
+        $ip   = getClientIP();
 
         try {
             $db->prepare("INSERT INTO users (username,email,password_hash,full_name,avatar,created_ip) VALUES (?,?,?,?,?,?)")
-               ->execute([$uname, $email, $hash, $name, $avatars[array_rand($avatars)], $ip]);
+               ->execute([$uname, $email, $hash, $name, $avatarList[array_rand($avatarList)], $ip]);
             $uid = (int)$db->lastInsertId();
             $db->prepare("INSERT INTO wallets (user_id, balance) VALUES (?, 0)")->execute([$uid]);
             loginUser($uid);
             flash('success', '¡Cuenta creada! Empieza apostando ⚽');
             redirect('/index.php?page=home');
         } catch (PDOException $e) {
-            // No revelar si es email o username el duplicado
             flash('error', 'Email o usuario ya registrado');
             redirect('/index.php?page=register');
         }
@@ -140,7 +139,6 @@ function handlePost(string $page, ?array $user): void {
         $minute  = (int)($_POST['minute'] ?? 0);
         $amount  = round((float)($_POST['amount'] ?? 0), 4);
 
-        // Obtener partido y validar estado
         $stmt = $db->prepare("SELECT * FROM matches WHERE id = ? AND status = 'open'");
         $stmt->execute([$matchId]);
         $match = $stmt->fetch();
@@ -149,26 +147,22 @@ function handlePost(string $page, ?array $user): void {
             redirect('/index.php?page=matches');
         }
 
-        // Validar equipo contra BD (no confiar en POST)
         if (!in_array($team, [$match['home_team'], $match['away_team']], true)) {
             flash('error', 'Equipo inválido');
             redirect("/index.php?page=bet&id=$matchId");
         }
 
-        // Validar minuto
         if ($minute < 1 || $minute > 90) {
             flash('error', 'Minuto inválido (1-90)');
             redirect("/index.php?page=bet&id=$matchId");
         }
 
-        // Validar monto contra saldo real de BD (no del POST)
         $realBalance = getBalance($user['id']);
         if ($err = validateBetAmount($amount, $realBalance)) {
             flash('error', $err);
             redirect("/index.php?page=bet&id=$matchId");
         }
 
-        // Verificar máximo 3 apuestas por partido por usuario
         $stmt = $db->prepare("SELECT COUNT(*) FROM bets WHERE user_id=? AND match_id=?");
         $stmt->execute([$user['id'], $matchId]);
         if ((int)$stmt->fetchColumn() >= 3) {
@@ -176,7 +170,6 @@ function handlePost(string $page, ?array $user): void {
             redirect("/index.php?page=bet&id=$matchId");
         }
 
-        // Verificar apuesta duplicada (mismo equipo+minuto+jugador)
         $stmt = $db->prepare("SELECT id FROM bets WHERE user_id=? AND match_id=? AND team=? AND minute=?");
         $stmt->execute([$user['id'], $matchId, $team, $minute]);
         if ($stmt->fetch()) {
@@ -184,10 +177,8 @@ function handlePost(string $page, ?array $user): void {
             redirect("/index.php?page=bet&id=$matchId");
         }
 
-        // Transacción: descontar y registrar apuesta ATÓMICAMENTE
         $db->beginTransaction();
         try {
-            // Descontar saldo (query atómica con CHECK de balance)
             $ok = deductBalance($user['id'], $amount);
             if (!$ok) {
                 $db->rollBack();
@@ -201,13 +192,11 @@ function handlePost(string $page, ?array $user): void {
 
             $db->prepare("UPDATE matches SET pot_total = pot_total + ? WHERE id = ?")->execute([$amount, $matchId]);
 
-            // Registrar transacción
             $newBal = getBalance($user['id']);
             $db->prepare("INSERT INTO transactions (user_id,type,amount,balance_after,description,reference_id) VALUES (?,?,?,?,?,?)")
                ->execute([$user['id'], 'bet', -$amount, $newBal, "Apuesta {$team} min {$minute} — partido #{$matchId}", $betId]);
 
             $db->commit();
-            // Notificar al admin por Telegram
             $matchName = $match['home_team'] . ' vs ' . $match['away_team'];
             notifyNewBet($user, $matchName, $team, $minute, $amount);
             flash('success', "🎯 ¡Apuesta registrada! {$team} en el minuto {$minute}");
@@ -227,28 +216,41 @@ function handlePost(string $page, ?array $user): void {
 
         $name   = mb_substr(trim($_POST['full_name'] ?? ''), 0, 80);
         $avatar = trim($_POST['avatar'] ?? '⚽');
-        $avatars = ['⚽','🏆','🥅','👟','🦅','🔥','⭐','🎯','🦁','🐉','💎','🎪','🌟','⚡','🦊','🎭'];
-        if (!in_array($avatar, $avatars, true)) $avatar = '⚽';
+
+        // FIX #7: usa la constante AVATARS en lugar de array inline distinto
+        if (!in_array($avatar, AVATARS, true)) $avatar = '⚽';
         if (strlen($name) < 2) { flash('error', 'Nombre muy corto'); redirect('/index.php?page=profile'); }
 
-        // Change password (optional)
-        $newPass  = $_POST['new_password']     ?? '';
-        $currPass = $_POST['current_password'] ?? '';
-
-        if ($newPass !== '') {
-            if (!password_verify($currPass, $user['password_hash'])) {
-                flash('error', 'Contraseña actual incorrecta');
-                redirect('/index.php?page=profile');
-            }
-            if ($err = validatePassword($newPass)) { flash('error', $err); redirect('/index.php?page=profile'); }
-            $hash = password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12]);
-            $db->prepare("UPDATE users SET full_name=?, avatar=?, password_hash=? WHERE id=?")
-               ->execute([$name, $avatar, $hash, $user['id']]);
-        } else {
-            $db->prepare("UPDATE users SET full_name=?, avatar=? WHERE id=?")->execute([$name, $avatar, $user['id']]);
-        }
+        $db->prepare("UPDATE users SET full_name=?, avatar=? WHERE id=?")->execute([$name, $avatar, $user['id']]);
 
         flash('success', 'Perfil actualizado ✅');
+        redirect('/index.php?page=profile');
+    }
+
+    // FIX #5: acción change_password que existía en el form pero no en handlePost
+    if ($action === 'change_password') {
+        csrfVerify();
+        if (!$user) redirect('/index.php?page=login');
+
+        $currPass = $_POST['current_password'] ?? '';
+        $newPass  = $_POST['new_password']     ?? '';
+        $confPass = $_POST['confirm_password'] ?? '';
+
+        if (!password_verify($currPass, $user['password_hash'])) {
+            flash('error', 'Contraseña actual incorrecta');
+            redirect('/index.php?page=profile');
+        }
+        if ($newPass !== $confPass) {
+            flash('error', 'Las contraseñas no coinciden');
+            redirect('/index.php?page=profile');
+        }
+        if ($err = validatePassword($newPass)) {
+            flash('error', $err);
+            redirect('/index.php?page=profile');
+        }
+        $hash = password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12]);
+        $db->prepare("UPDATE users SET password_hash=? WHERE id=?")->execute([$hash, $user['id']]);
+        flash('success', 'Contraseña cambiada ✅');
         redirect('/index.php?page=profile');
     }
 
@@ -261,23 +263,19 @@ function handlePost(string $page, ?array $user): void {
         $method = trim($_POST['payment_method'] ?? 'transferencia');
         $notes  = trim($_POST['receipt_notes'] ?? '');
 
-        // Validar monto - mínimo $250 ARS
         if ($amount < 250 || $amount > 1000000) {
             flash('error', 'Monto inválido. Mínimo $250 ARS');
             redirect('/index.php?page=recharge');
         }
 
-        // Validar método contra lista blanca
         $allowedMethods = ['transferencia','efectivo','crypto','otro','ceneka','mercadopago'];
         if (!in_array($method, $allowedMethods, true)) {
             flash('error', 'Método de pago inválido');
             redirect('/index.php?page=recharge');
         }
 
-        // Limitar longitud de notas
         $notes = mb_substr($notes, 0, 500);
 
-        // Verificar que no tenga una solicitud pendiente ya
         $stmt = $db->prepare("SELECT id FROM recharge_requests WHERE user_id=? AND status='pending'");
         $stmt->execute([$user['id']]);
         if ($stmt->fetch()) {
@@ -287,7 +285,6 @@ function handlePost(string $page, ?array $user): void {
 
         $db->prepare("INSERT INTO recharge_requests (user_id,amount_cedenas,payment_method,receipt_notes) VALUES (?,?,?,?)")
            ->execute([$user['id'], $amount, $method, $notes]);
-        // Notificar al admin por Telegram
         notifyNewRecharge($user, $amount, $notes);
         flash('success', 'Solicitud enviada. El admin la revisará pronto ✅');
         redirect('/index.php?page=wallet');
@@ -295,13 +292,9 @@ function handlePost(string $page, ?array $user): void {
 }
 
 // =============================================
-// PÁGINAS
-// =============================================
-// =============================================
 // HELPERS — Score y Goles en cards
 // =============================================
 function renderMatchScore(array $m, array $goals): void {
-    // Calcular marcador
     $homeGoals = count(array_filter($goals, fn($g) => $g['team'] === $m['home_team']));
     $awayGoals = count(array_filter($goals, fn($g) => $g['team'] === $m['away_team']));
     $hasGoals  = !empty($goals);
@@ -341,6 +334,9 @@ function renderGoalsList(array $goals): void {
 </div>
 <?php }
 
+// =============================================
+// PÁGINAS
+// =============================================
 function pageHome(?array $user): void { ?>
 <div class="hero">
   <div class="hero-ball">⚽</div>
@@ -409,18 +405,15 @@ function pageLogin(): void { ?>
   <div class="auth-card">
     <div class="auth-logo">CEDEKA <span>WC</span></div>
     <?php renderFlash(); ?>
-    <!-- Login con Google -->
     <a href="/auth/google/login.php" class="btn btn-block btn-lg mb-3" style="background:#fff;color:#1f1f1f;border:1px solid #ddd;font-family:var(--font-body);font-weight:600;text-transform:none;letter-spacing:0;font-size:15px;gap:10px">
       <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Continuar con Google
     </a>
-
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
       <hr style="flex:1;border:none;border-top:1px solid var(--border)">
       <span style="font-size:12px;color:var(--text-dim)">o ingresá con email</span>
       <hr style="flex:1;border:none;border-top:1px solid var(--border)">
     </div>
-
     <form method="POST" action="/index.php?page=login">
       <?php csrfField(); ?>
       <input type="hidden" name="action" value="login">
@@ -446,18 +439,15 @@ function pageRegister(): void { ?>
     <div class="auth-logo">CEDEKA <span>WC</span></div>
     <p class="text-center text-muted fs-sm mb-3">Crea tu cuenta de jugador</p>
     <?php renderFlash(); ?>
-    <!-- Registro con Google -->
     <a href="/auth/google/login.php" class="btn btn-block btn-lg mb-3" style="background:#fff;color:#1f1f1f;border:1px solid #ddd;font-family:var(--font-body);font-weight:600;text-transform:none;letter-spacing:0;font-size:15px;gap:10px">
       <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Registrarse con Google
     </a>
-
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
       <hr style="flex:1;border:none;border-top:1px solid var(--border)">
       <span style="font-size:12px;color:var(--text-dim)">o creá tu cuenta</span>
       <hr style="flex:1;border:none;border-top:1px solid var(--border)">
     </div>
-
     <form method="POST" action="/index.php?page=register">
       <?php csrfField(); ?>
       <input type="hidden" name="action" value="register">
@@ -568,7 +558,6 @@ function pageBet(?array $user): void {
     $myBetsList = $stmt->fetchAll();
     $takenByMe = array_map(fn($b) => $b['team'].'_'.$b['minute'].'_'.($b['player_name']??''), $myBetsList);
 
-    // Cargar jugadores del partido
     $stmt = $db->prepare("SELECT * FROM match_players WHERE match_id=? ORDER BY team, jersey_number, player_name");
     $stmt->execute([$matchId]);
     $matchPlayers = $stmt->fetchAll();
@@ -584,6 +573,9 @@ function pageBet(?array $user): void {
     $stmt = $db->prepare("SELECT * FROM goals WHERE match_id=?");
     $stmt->execute([$matchId]);
     $goals = $stmt->fetchAll();
+
+    // FIX #6: refrescar saldo real desde BD en lugar de depender del dato de sesión
+    $user['balance'] = getBalance($user['id']);
 ?>
 <div class="page-wrap">
   <?php renderFlash(); ?>
@@ -679,13 +671,16 @@ function pageBet(?array $user): void {
           <div style="font-family:var(--font-head);font-size:22px;color:var(--green)">90% del pozo</div>
         </div>
       </div>
-      <?php
-  // Contar apuestas del usuario en este partido
+    </div>
+  </div>
+
+  <?php
   $stmtCount = $db->prepare("SELECT COUNT(*) FROM bets WHERE user_id=? AND match_id=?");
   $stmtCount->execute([$user['id'], $matchId]);
-  $userBetCount = (int)$stmtCount->fetchColumn();
+  $userBetCount  = (int)$stmtCount->fetchColumn();
   $remainingBets = 3 - $userBetCount;
   ?>
+
   <?php if ($remainingBets <= 0): ?>
   <div class="alert alert-warn">⚠️ Ya realizaste tus 3 apuestas en este partido. No podés apostar más.</div>
   <?php elseif ($remainingBets == 1): ?>
@@ -699,13 +694,10 @@ function pageBet(?array $user): void {
   <?php endif; ?>
 
   <?php if ((float)$user['balance'] <= 0): ?>
-      <a href="/index.php?page=recharge" class="btn btn-primary btn-sm">+ Cargar saldo</a>
-      <?php endif; ?>
-    </div>
-  </div>
+  <a href="/index.php?page=recharge" class="btn btn-primary btn-sm">+ Cargar saldo</a>
+  <?php endif; ?>
 
-  <?php if ($remainingBets <= 0): ?>
-  <?php else: ?>
+  <?php if ($remainingBets > 0): ?>
   <form method="POST" action="/index.php?page=bet" id="betForm">
     <?php csrfField(); ?>
     <input type="hidden" name="action" value="place_bet">
@@ -769,9 +761,11 @@ function pageBet(?array $user): void {
       <button type="submit" class="btn btn-primary btn-block btn-lg mt-3" onclick="return validateBet()">🎯 CONFIRMAR APUESTA</button>
     </div>
   </form>
+  <?php endif; // end remainingBets check ?>
+
+  <?php endif; // end status check ?>
 
   <?php
-  // Pasar datos al JS via data attributes para evitar problemas con HTML insertado
   $betData = json_encode([
     'takenByMe' => $takenByMe,
     'allBets'   => $allBets,
@@ -780,11 +774,11 @@ function pageBet(?array $user): void {
     'minBet'    => MIN_BET,
   ]);
   ?>
-  <?php endif; // end status check - close the form area ?>
   <div id="betData" data-json="<?= base64_encode($betData) ?>" style="display:none"></div>
   <script src="/assets/js/bet.js" defer></script>
 </div>
-<?php }
+<?php // FIX #4: corregido el tag de cierre PHP que era "<?>" (inválido)
+}
 
 // ---- MY BETS ----
 function pageMyBets(?array $user): void {
@@ -897,9 +891,7 @@ function pageWallet(?array $user): void {
 // ---- RECHARGE ----
 function pageRecharge(?array $user): void {
     $user = requireLogin();
-    $cvu     = '0000003100081060403974';
-    $minRecharge = 250;
-    // Link directo a MP con CVU precargado
+    $cvu  = '0000003100081060403974';
     $mpLink = 'https://mpago.la/send?receiver=' . $cvu;
 ?>
 <div class="page-wrap" style="max-width:600px">
@@ -908,7 +900,6 @@ function pageRecharge(?array $user): void {
   <h1 class="page-title">CARGAR <span>CEDENAS</span></h1>
   <p class="page-subtitle">1 peso argentino = 1 Cedena ₵</p>
 
-  <!-- Paso 1 — Transferir por MP -->
   <div class="card mb-3">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
       <div style="width:32px;height:32px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:18px;color:#000;flex-shrink:0">1</div>
@@ -917,15 +908,11 @@ function pageRecharge(?array $user): void {
         <div style="font-size:12px;color:var(--text-dim)">Usá tu app de MP o banco para transferir</div>
       </div>
     </div>
-
-    <!-- Datos de transferencia -->
     <div style="background:var(--bg3);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:20px;margin-bottom:16px">
       <div style="text-align:center;margin-bottom:16px">
-        <!-- Logo MP -->
         <div style="font-size:40px;margin-bottom:8px">💳</div>
         <div style="font-family:var(--font-head);font-size:20px;letter-spacing:2px;color:var(--gold)">MERCADO PAGO</div>
       </div>
-
       <div style="display:grid;gap:12px">
         <div style="background:var(--bg2);border-radius:8px;padding:14px 16px">
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:4px">CVU</div>
@@ -934,19 +921,15 @@ function pageRecharge(?array $user): void {
             <button onclick="copyToClipboard('<?= $cvu ?>', this)" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px">📋 Copiar</button>
           </div>
         </div>
-
         <div style="background:var(--bg2);border-radius:8px;padding:14px 16px">
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:4px">Titular</div>
           <div style="font-size:15px;color:#fff;font-weight:600">Cedeka World Cup</div>
         </div>
       </div>
-
       <div class="alert alert-warn mt-3 mb-0" style="font-size:12px">
         ⚠️ En el <strong>concepto/descripción</strong> de la transferencia escribí tu usuario: <strong style="color:var(--gold)"><?= h($user['username']) ?></strong>
       </div>
     </div>
-
-    <!-- Botón directo a MP -->
     <a href="<?= $mpLink ?>" target="_blank" class="btn btn-block btn-lg mb-3"
        style="background:#009ee3;color:#fff;font-family:var(--font-body);font-weight:700;text-transform:none;font-size:15px;letter-spacing:0;gap:10px;border-radius:10px">
       <svg width="22" height="22" viewBox="0 0 48 48" fill="none">
@@ -959,25 +942,23 @@ function pageRecharge(?array $user): void {
     <p style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:-8px;margin-bottom:16px">
       Te abre MP con el CVU precargado
     </p>
-
-    <!-- Montos sugeridos -->
+    <!-- FIX #8: renombrada variable $m → $monto para evitar colisión de nombres -->
     <div style="margin-bottom:4px">
       <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Montos sugeridos</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <?php foreach ([250,500,1000,2000,5000,10000] as $m): ?>
-        <div onclick="document.getElementById('amountInput').value=<?=$m?>;updatePreview(<?=$m?>)"
+        <?php foreach ([250,500,1000,2000,5000,10000] as $monto): ?>
+        <div onclick="document.getElementById('amountInput').value=<?= $monto ?>;updatePreview(<?= $monto ?>)"
           style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all 0.2s"
           onmouseover="this.style.borderColor='rgba(201,168,76,0.4)'"
           onmouseout="this.style.borderColor='var(--border)'">
-          <div style="font-family:var(--font-head);font-size:18px;color:var(--gold)">₵<?= number_format($m) ?></div>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:2px">$<?= number_format($m) ?> ARS</div>
+          <div style="font-family:var(--font-head);font-size:18px;color:var(--gold)">₵<?= number_format($monto) ?></div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px">$<?= number_format($monto) ?> ARS</div>
         </div>
         <?php endforeach; ?>
       </div>
     </div>
   </div>
 
-  <!-- Paso 2 — Avisar -->
   <div class="card mb-3">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
       <div style="width:32px;height:32px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:18px;color:#000;flex-shrink:0">2</div>
@@ -986,12 +967,10 @@ function pageRecharge(?array $user): void {
         <div style="font-size:12px;color:var(--text-dim)">Completá el formulario para que acreditemos tus Cedenas</div>
       </div>
     </div>
-
     <form method="POST" action="/index.php?page=recharge">
       <?php csrfField(); ?>
       <input type="hidden" name="action" value="recharge_request">
       <input type="hidden" name="payment_method" value="mercadopago">
-
       <div class="form-group">
         <label class="form-label">¿Cuánto transferiste? (en pesos ARS)</label>
         <div style="position:relative">
@@ -1002,7 +981,6 @@ function pageRecharge(?array $user): void {
         </div>
         <div id="cedenasPreview" style="margin-top:6px;font-size:13px;color:var(--text-dim)">= 0 Cedenas ₵</div>
       </div>
-
       <div class="form-group">
         <label class="form-label">Comprobante o referencia de la transferencia</label>
         <input type="text" name="receipt_notes" class="form-control" maxlength="500"
@@ -1011,14 +989,12 @@ function pageRecharge(?array $user): void {
           Recordá haber puesto tu usuario <strong style="color:var(--gold)"><?= h($user['username']) ?></strong> en el concepto
         </div>
       </div>
-
       <button type="submit" class="btn btn-green btn-block btn-lg">
         ✅ Ya transferí, acreditá mis Cedenas
       </button>
     </form>
   </div>
 
-  <!-- Paso 3 -->
   <div class="card" style="background:rgba(61,169,252,0.05);border-color:rgba(61,169,252,0.2)">
     <div style="display:flex;align-items:center;gap:12px">
       <div style="width:32px;height:32px;background:var(--blue-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:18px;color:#000;flex-shrink:0">3</div>
@@ -1042,7 +1018,6 @@ function updatePreview(val) {
     el.style.color = n > 0 ? 'var(--gold)' : 'var(--text-dim)';
   }
 }
-
 function copyToClipboard(text, btn) {
   navigator.clipboard.writeText(text).then(function() {
     const orig = btn.textContent;
@@ -1053,8 +1028,6 @@ function copyToClipboard(text, btn) {
 }
 </script>
 <?php }
-
-
 
 // =============================================
 // PAGE 404
@@ -1075,6 +1048,9 @@ function pageProfile(?array $user): void {
     $user = requireLogin();
     $db   = getDB();
 
+    // FIX #6: saldo siempre fresco desde BD
+    $user['balance'] = getBalance($user['id']);
+
     $stmt = $db->prepare("SELECT COUNT(*) FROM bets WHERE user_id=?"); $stmt->execute([$user['id']]); $totalBets = (int)$stmt->fetchColumn();
     $stmt = $db->prepare("SELECT COUNT(*) FROM bets WHERE user_id=? AND status='won'"); $stmt->execute([$user['id']]); $wonBets = (int)$stmt->fetchColumn();
     $stmt = $db->prepare("SELECT COALESCE(SUM(prize_cedenas),0) FROM bets WHERE user_id=? AND status='won'"); $stmt->execute([$user['id']]); $totalWon = (float)$stmt->fetchColumn();
@@ -1087,7 +1063,8 @@ function pageProfile(?array $user): void {
     $stmt->execute([$user['id']]);
     $recentBets = $stmt->fetchAll();
 
-    $avatars = ['⚽','🏆','🥅','👟','🦅','🔥','⭐','🎯','🦁','🐉','💎','🚀','🌟','⚡','🏅'];
+    // FIX #7: usa la constante AVATARS
+    $avatars = AVATARS;
 ?>
 <div class="page-wrap" style="max-width:800px">
   <?php renderFlash(); ?>
@@ -1150,6 +1127,7 @@ function pageProfile(?array $user): void {
         </form>
       </div>
 
+      <!-- FIX #5: este formulario ahora tiene su acción correspondiente en handlePost -->
       <div class="card">
         <div class="card-header">🔒 Cambiar Contraseña</div>
         <form method="POST" action="/index.php?page=profile">
@@ -1320,13 +1298,13 @@ function pageRanking(?array $user): void {
         <div class="empty-state" style="padding:24px"><div class="icon">⏱</div><h3>Sin datos aún</h3></div>
       <?php else:
         $maxCnt = max(array_column($hotMinutes, 'cnt'));
-        foreach ($hotMinutes as $m):
-          $pct = $maxCnt > 0 ? ($m['cnt'] / $maxCnt) * 100 : 0;
+        foreach ($hotMinutes as $hm):
+          $pct = $maxCnt > 0 ? ($hm['cnt'] / $maxCnt) * 100 : 0;
       ?>
       <div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="font-family:var(--font-sub);font-weight:700;font-size:13px">Minuto <?= (int)$m['minute'] ?></span>
-          <span style="font-size:12px;color:var(--text-dim)"><?= (int)$m['cnt'] ?> apuestas</span>
+          <span style="font-family:var(--font-sub);font-weight:700;font-size:13px">Minuto <?= (int)$hm['minute'] ?></span>
+          <span style="font-size:12px;color:var(--text-dim)"><?= (int)$hm['cnt'] ?> apuestas</span>
         </div>
         <div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">
           <div style="width:<?= $pct ?>%;background:linear-gradient(90deg,var(--blue2),var(--gold));height:100%;border-radius:4px"></div>
@@ -1368,9 +1346,7 @@ function pageComoFunciona(): void { ?>
   <h1 class="page-title">CÓMO <span>FUNCIONA</span></h1>
   <p class="page-subtitle">Todo lo que necesitás saber para apostar en Cedeka WC</p>
 
-  <!-- Pasos -->
   <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:32px">
-
     <div class="card" style="border-left:3px solid var(--gold)">
       <div style="display:flex;gap:16px;align-items:flex-start">
         <div style="width:48px;height:48px;background:rgba(201,168,76,0.15);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--gold);flex-shrink:0">1</div>
@@ -1380,7 +1356,6 @@ function pageComoFunciona(): void { ?>
         </div>
       </div>
     </div>
-
     <div class="card" style="border-left:3px solid var(--blue-light)">
       <div style="display:flex;gap:16px;align-items:flex-start">
         <div style="width:48px;height:48px;background:rgba(74,144,217,0.15);border:2px solid var(--blue-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--blue-light);flex-shrink:0">2</div>
@@ -1390,7 +1365,6 @@ function pageComoFunciona(): void { ?>
         </div>
       </div>
     </div>
-
     <div class="card" style="border-left:3px solid var(--green)">
       <div style="display:flex;gap:16px;align-items:flex-start">
         <div style="width:48px;height:48px;background:rgba(0,229,122,0.1);border:2px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--green);flex-shrink:0">3</div>
@@ -1400,7 +1374,6 @@ function pageComoFunciona(): void { ?>
         </div>
       </div>
     </div>
-
     <div class="card" style="border-left:3px solid var(--gold)">
       <div style="display:flex;gap:16px;align-items:flex-start">
         <div style="width:48px;height:48px;background:rgba(201,168,76,0.15);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--gold);flex-shrink:0">4</div>
@@ -1410,10 +1383,8 @@ function pageComoFunciona(): void { ?>
         </div>
       </div>
     </div>
-
   </div>
 
-  <!-- Distribución del pozo -->
   <div class="card mb-4" style="background:linear-gradient(135deg,rgba(26,58,107,0.3),rgba(201,168,76,0.08));border-color:rgba(201,168,76,0.2)">
     <div class="card-header">💰 DISTRIBUCIÓN DEL POZO</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center">
@@ -1432,7 +1403,6 @@ function pageComoFunciona(): void { ?>
     </div>
   </div>
 
-  <!-- Reglas -->
   <div class="card mb-4">
     <div class="card-header">📋 REGLAS IMPORTANTES</div>
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -1456,7 +1426,6 @@ function pageComoFunciona(): void { ?>
     </div>
   </div>
 
-  <!-- Estados del partido -->
   <div class="card mb-4">
     <div class="card-header">🚦 ESTADOS DE UN PARTIDO</div>
     <div style="display:flex;flex-direction:column;gap:8px">
