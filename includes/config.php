@@ -12,7 +12,7 @@ define('DB_PORT',    $_ENV['DB_PORT']    ?? getenv('DB_PORT')    ?: '3306');
 define('DB_CHARSET', 'utf8mb4');
 
 define('SITE_NAME',        'Cedeka World Cup');
-define('SITE_COMMISSION',  0.10);
+define('SITE_COMMISSION',  0.20);
 define('MIN_BET',          250);
 define('MAX_BET',          10000);
 define('SESSION_LIFETIME', 7200);
@@ -360,7 +360,31 @@ function resolveMatch(int $matchId): array {
 
         $db->prepare("UPDATE bets SET status='lost' WHERE match_id=? AND status='pending'")->execute([$matchId]);
         $db->prepare("UPDATE matches SET status='finished', commission_taken=?, pot_total=? WHERE id=?")->execute([$commission, $potTotal, $matchId]);
+
+        // Guardar notificación en perfil de cada ganador
+        if (!empty($winners)) {
+            $matchStmt = $db->prepare("SELECT home_team, away_team FROM matches WHERE id=?");
+            $matchStmt->execute([$matchId]);
+            $matchRow = $matchStmt->fetch();
+            $matchName = ($matchRow['home_team'] ?? '') . ' vs ' . ($matchRow['away_team'] ?? '');
+            $prizeEach = round($potToShare / count($winners), 4);
+            foreach ($winners as $bet) {
+                // Insertar notificación en tabla user_notifications si existe
+                try {
+                    $db->prepare("INSERT INTO user_notifications (user_id, type, message, created_at) VALUES (?, 'prize', ?, NOW())")
+                       ->execute([$bet['user_id'], "🏆 ¡Ganaste " . number_format($prizeEach, 2, '.', ',') . " ₵ en el partido $matchName! Apostaste " . $bet['team'] . " min " . $bet['minute'] . ". Premio acreditado en tu wallet."]);
+                } catch (Exception \$ne) { /* tabla opcional */ }
+            }
+        }
+
         $db->commit();
+
+        // Notificar por Telegram post-commit
+        $matchStmt2 = $db->prepare("SELECT home_team, away_team FROM matches WHERE id=?");
+        $matchStmt2->execute([$matchId]);
+        $matchRow2 = $matchStmt2->fetch();
+        $matchNameNotif = ($matchRow2['home_team'] ?? '') . ' vs ' . ($matchRow2['away_team'] ?? '');
+        if (function_exists('notifyMatchWinners')) { notifyMatchWinners($matchNameNotif, $winners, $potTotal, $commission); }
 
         return [
             'success'       => true,
@@ -370,6 +394,7 @@ function resolveMatch(int $matchId): array {
             'winners_count' => count($winners),
             'prize_each'    => empty($winners) ? 0 : round($potToShare / count($winners), 4),
             'accumulated'   => empty($winners),
+            'winners'       => $winners,
         ];
 
     } catch (Exception $e) {

@@ -671,7 +671,7 @@ function pageBet(?array $user): void {
         <span style="font-size:20px">📊</span>
         <div>
           <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px">Premio estimado</div>
-          <div style="font-family:var(--font-head);font-size:22px;color:var(--green)">90% del pozo</div>
+          <div style="font-family:var(--font-head);font-size:22px;color:var(--green)">80% del pozo</div>
         </div>
       </div>
       <?php
@@ -758,7 +758,7 @@ function pageBet(?array $user): void {
         <div class="flex-between fs-sm mb-1"><span class="text-muted">Minuto</span><span id="sumMin">—</span></div>
         <div class="flex-between fs-sm mb-1"><span class="text-muted">Apuesta</span><span id="sumAmt">—</span></div>
         <hr class="divider">
-        <div class="flex-between fs-sm"><span class="text-muted">Comisión sitio (10%)</span><span class="text-muted" id="sumComm">—</span></div>
+        <div class="flex-between fs-sm"><span class="text-muted">Comisión casa (20%)</span><span class="text-muted" id="sumComm">—</span></div>
         <div class="flex-between fw-bold mt-1"><span>Premio potencial</span><span class="text-gold">Depende del pozo</span></div>
       </div>
       <button type="submit" class="btn btn-primary btn-block btn-lg mt-3" onclick="return validateBet()">🎯 CONFIRMAR APUESTA</button>
@@ -896,8 +896,6 @@ function pageRecharge(?array $user): void {
     $user = requireLogin();
     $cvu     = '0000003100081060403974';
     $minRecharge = 250;
-    // Link directo a MP con CVU precargado
-    $mpLink = 'https://mpago.la/send?receiver=' . $cvu;
 ?>
 <div class="page-wrap" style="max-width:600px">
   <?php renderFlash(); ?>
@@ -905,22 +903,21 @@ function pageRecharge(?array $user): void {
   <h1 class="page-title">CARGAR <span>CEDENAS</span></h1>
   <p class="page-subtitle">1 peso argentino = 1 Cedena ₵</p>
 
-  <!-- Paso 1 — Transferir por MP -->
+  <!-- Paso 1 — Transferir por Ceneka -->
   <div class="card mb-3">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
       <div style="width:32px;height:32px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:18px;color:#000;flex-shrink:0">1</div>
       <div>
-        <div style="font-family:var(--font-sub);font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:1px">Transferí por Mercado Pago</div>
-        <div style="font-size:12px;color:var(--text-dim)">Usá tu app de MP o banco para transferir</div>
+        <div style="font-family:var(--font-sub);font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:1px">Transferí vía Ceneka</div>
+        <div style="font-size:12px;color:var(--text-dim)">Usá tu app bancaria o Ceneka para transferir al CVU</div>
       </div>
     </div>
 
     <!-- Datos de transferencia -->
     <div style="background:var(--bg3);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:20px;margin-bottom:16px">
       <div style="text-align:center;margin-bottom:16px">
-        <!-- Logo MP -->
-        <div style="font-size:40px;margin-bottom:8px">💳</div>
-        <div style="font-family:var(--font-head);font-size:20px;letter-spacing:2px;color:var(--gold)">MERCADO PAGO</div>
+        <div style="font-size:40px;margin-bottom:8px">🏦</div>
+        <div style="font-family:var(--font-head);font-size:20px;letter-spacing:2px;color:var(--gold)">CENEKA</div>
       </div>
 
       <div style="display:grid;gap:12px">
@@ -942,20 +939,6 @@ function pageRecharge(?array $user): void {
         ⚠️ En el <strong>concepto/descripción</strong> de la transferencia escribí tu usuario: <strong style="color:var(--gold)"><?= h($user['username']) ?></strong>
       </div>
     </div>
-
-    <!-- Botón directo a MP -->
-    <a href="<?= $mpLink ?>" target="_blank" class="btn btn-block btn-lg mb-3"
-       style="background:#009ee3;color:#fff;font-family:var(--font-body);font-weight:700;text-transform:none;font-size:15px;letter-spacing:0;gap:10px;border-radius:10px">
-      <svg width="22" height="22" viewBox="0 0 48 48" fill="none">
-        <circle cx="24" cy="24" r="24" fill="#009ee3"/>
-        <path d="M34 18H14a2 2 0 00-2 2v8a2 2 0 002 2h20a2 2 0 002-2v-8a2 2 0 00-2-2z" fill="white" opacity=".3"/>
-        <rect x="14" y="26" width="8" height="3" rx="1.5" fill="white"/>
-      </svg>
-      Transferir con Mercado Pago →
-    </a>
-    <p style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:-8px;margin-bottom:16px">
-      Te abre MP con el CVU precargado
-    </p>
 
     <!-- Montos sugeridos -->
     <div style="margin-bottom:4px">
@@ -987,7 +970,7 @@ function pageRecharge(?array $user): void {
     <form method="POST" action="/index.php?page=recharge">
       <?php csrfField(); ?>
       <input type="hidden" name="action" value="recharge_request">
-      <input type="hidden" name="payment_method" value="mercadopago">
+      <input type="hidden" name="payment_method" value="ceneka">
 
       <div class="form-group">
         <label class="form-label">¿Cuánto transferiste? (en pesos ARS)</label>
@@ -1084,6 +1067,16 @@ function pageProfile(?array $user): void {
     $stmt->execute([$user['id']]);
     $recentBets = $stmt->fetchAll();
 
+    // Notificaciones del usuario
+    $notifications = [];
+    try {
+        $stmt = $db->prepare("SELECT * FROM user_notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 10");
+        $stmt->execute([$user['id']]);
+        $notifications = $stmt->fetchAll();
+        // Marcar como leídas
+        $db->prepare("UPDATE user_notifications SET is_read=1 WHERE user_id=? AND is_read=0")->execute([$user['id']]);
+    } catch (Exception $e) { /* tabla puede no existir aún */ }
+
     $avatars = ['⚽','🏆','🥅','👟','🦅','🔥','⭐','🎯','🦁','🐉','💎','🚀','🌟','⚡','🏅'];
 ?>
 <div class="page-wrap" style="max-width:800px">
@@ -1169,6 +1162,20 @@ function pageProfile(?array $user): void {
       </div>
     </div>
 
+    <?php if (!empty($notifications)): ?>
+    <div class="card mb-3" style="border-color:rgba(0,229,122,0.3)">
+      <div class="card-header" style="color:var(--green)">🔔 Notificaciones</div>
+      <?php foreach ($notifications as $notif): ?>
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:18px"><?= $notif['type']==='prize'?'🏆':'ℹ️' ?></span>
+        <div>
+          <div style="font-size:13px;color:var(--text)"><?= h($notif['message']) ?></div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px"><?= timeAgo($notif['created_at']) ?></div>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
     <div class="card">
       <div class="card-header">🎯 Últimas Apuestas</div>
       <?php if (empty($recentBets)): ?>
@@ -1373,7 +1380,7 @@ function pageComoFunciona(): void { ?>
         <div style="width:48px;height:48px;background:rgba(201,168,76,0.15);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--gold);flex-shrink:0">1</div>
         <div>
           <div style="font-family:var(--font-sub);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:6px">Cargá tus Cedenas</div>
-          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Transferí pesos argentinos a nuestro CVU de Mercado Pago. Cada $1 ARS = 1 Cedena ₵. El mínimo es $250 ARS. Avisanos por el formulario y acreditamos en menos de 24hs.</p>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Transferí pesos argentinos al CVU de Ceneka. Cada $1 ARS = 1 Cedena ₵. El mínimo es $250 ARS. Avisanos por el formulario y acreditamos en menos de 24hs.</p>
         </div>
       </div>
     </div>
@@ -1393,7 +1400,7 @@ function pageComoFunciona(): void { ?>
         <div style="width:48px;height:48px;background:rgba(0,229,122,0.1);border:2px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--green);flex-shrink:0">3</div>
         <div>
           <div style="font-family:var(--font-sub);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:6px">Hacé tu Apuesta</div>
-          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Elegí <strong style="color:#fff">qué equipo mete el gol</strong>, el <strong style="color:#fff">minuto exacto</strong> (1-90) y <strong style="color:#fff">qué jugador</strong> lo convierte. Para ganar tenés que acertar los 3.</p>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Elegí <strong style="color:#fff">qué equipo mete el gol</strong> y el <strong style="color:#fff">minuto exacto</strong> (1-90). Si el partido tiene nómina cargada, también podés elegir el jugador (da ventaja). Para ganar hay que acertar <strong style="color:#fff">equipo + minuto</strong>.</p>
         </div>
       </div>
     </div>
@@ -1403,7 +1410,7 @@ function pageComoFunciona(): void { ?>
         <div style="width:48px;height:48px;background:rgba(201,168,76,0.15);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--gold);flex-shrink:0">4</div>
         <div>
           <div style="font-family:var(--font-sub);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:6px">Ganás el Pozo</div>
-          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Si acertás equipo + minuto + jugador, ganás. El <strong style="color:var(--gold)">90% del pozo</strong> se reparte entre todos los ganadores. El 10% es la comisión del sitio.</p>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Si acertás <strong style="color:var(--gold)">equipo + minuto</strong>, ganás. El <strong style="color:var(--gold)">80% del pozo</strong> se reparte entre todos los ganadores. El 20% es la comisión de la casa.</p>
         </div>
       </div>
     </div>
@@ -1435,7 +1442,7 @@ function pageComoFunciona(): void { ?>
     <div style="display:flex;flex-direction:column;gap:10px">
       <?php
       $rules = [
-        ['🎯', 'Para ganar hay que acertar equipo + minuto exacto + jugador'],
+        ['🎯', 'Para ganar hay que acertar equipo + minuto exacto del gol'],
         ['⚽', 'Si nadie acierta, el pozo se acumula al siguiente partido'],
         ['🔒', 'Cuando el partido cierra ya no se aceptan más apuestas'],
         ['💰', 'El mínimo de apuesta es ₵250 (equivale a $250 ARS)'],
