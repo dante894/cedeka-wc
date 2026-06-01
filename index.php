@@ -1424,12 +1424,12 @@ function pageComoFunciona(): void { ?>
     <div class="card-header">💰 DISTRIBUCIÓN DEL POZO</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center">
       <div style="background:var(--bg3);border-radius:8px;padding:16px">
-        <div style="font-family:var(--font-head);font-size:36px;color:var(--green)">90%</div>
+        <div style="font-family:var(--font-head);font-size:36px;color:var(--green)">80%</div>
         <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Para los ganadores</div>
       </div>
       <div style="background:var(--bg3);border-radius:8px;padding:16px">
-        <div style="font-family:var(--font-head);font-size:36px;color:var(--gold)">10%</div>
-        <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Comisión plataforma</div>
+        <div style="font-family:var(--font-head);font-size:36px;color:var(--gold)">20%</div>
+        <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Comisión de la casa</div>
       </div>
       <div style="background:var(--bg3);border-radius:8px;padding:16px">
         <div style="font-family:var(--font-head);font-size:36px;color:var(--blue-light)">3</div>
