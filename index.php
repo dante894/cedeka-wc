@@ -37,8 +37,10 @@ switch ($page) {
     case 'wallet':   pageWallet($user);   break;
     case 'recharge': pageRecharge($user); break;
     case 'profile':  pageProfile($user);  break;
-    case 'ranking':  pageRanking($user);  break;
-    default:         page404();
+    case 'ranking':       pageRanking($user);       break;
+    case 'como-funciona':  pageComoFunciona();       break;
+    case 'ganadores':      pageGanadores($user);     break;
+    default:               page404();
 }
 
 echo '</main>';
