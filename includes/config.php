@@ -373,7 +373,7 @@ function resolveMatch(int $matchId): array {
                 try {
                     $db->prepare("INSERT INTO user_notifications (user_id, type, message, created_at) VALUES (?, 'prize', ?, NOW())")
                        ->execute([$bet['user_id'], "🏆 ¡Ganaste " . number_format($prizeEach, 2, '.', ',') . " ₵ en el partido $matchName! Apostaste " . $bet['team'] . " min " . $bet['minute'] . ". Premio acreditado en tu wallet."]);
-                } catch (Exception \$ne) { /* tabla opcional */ }
+                } catch (Exception $ne) { /* tabla opcional */ }
             }
         }
 
