@@ -94,7 +94,7 @@ if ($_notifUser && $_notifUser['role'] !== 'admin') {
             if (!empty($r['review_notes'])) echo "<div style='font-size:11px;color:var(--text-dim);margin-top:6px;background:var(--bg3);border-radius:6px;padding:6px'>".h($r['review_notes'])."</div>";
             if ($isOk) echo "<a href='/index.php?page=matches' style='display:block;text-align:center;margin-top:10px;padding:7px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);border-radius:6px;color:var(--gold);text-decoration:none;font-size:12px;font-family:var(--font-sub);font-weight:700'>⚽ Ir a apostar →</a>";
             echo "</div>";
-            echo "<button onclick="document.getElementById('$rid').remove()" style='background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;padding:0'>×</button>";
+            echo "<button onclick="document.getElementById('{$rid}').remove()" style='background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;padding:0'>×</button>";
             echo "</div></div>";
         }
     }
@@ -114,7 +114,7 @@ if ($_notifUser && $_notifUser['role'] !== 'admin') {
             echo "<div style='font-size:11px;color:var(--text-dim);margin-bottom:3px'>".h($l['home_team'])." vs ".h($l['away_team'])." · Min ".(int)$l['minute']."</div>";
         }
         echo "<div style='font-size:11px;color:var(--text-dim);margin-top:6px'>¡Intentalo de nuevo! 💪</div></div>";
-        echo "<button onclick="document.getElementById('$lid').remove()" style='background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;padding:0;margin-left:8px'>×</button>";
+        echo "<button onclick="document.getElementById('{$lid}').remove()" style='background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;padding:0;margin-left:8px'>×</button>";
         echo "</div></div>";
     }
 }
