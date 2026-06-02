@@ -27,6 +27,98 @@ renderHead(ucfirst($page));
 renderNav($user);
 echo '<main>';
 
+// =============================================
+// NOTIFICACIONES AUTOMÁTICAS
+// =============================================
+$_notifUser = getCurrentUser();
+if ($_notifUser && $_notifUser['role'] !== 'admin') {
+    $db = getDB();
+
+    // ---- Ganadores ----
+    $stmt = $db->prepare("
+        SELECT b.*, m.home_team, m.away_team, m.home_flag, m.away_flag,
+               (SELECT COUNT(*) FROM bets b2 WHERE b2.match_id=b.match_id AND b2.status='won') as total_winners
+        FROM bets b JOIN matches m ON b.match_id=m.id
+        WHERE b.user_id=? AND b.status='won' AND b.notified=0
+        ORDER BY b.created_at DESC LIMIT 3
+    ");
+    $stmt->execute([$_notifUser['id']]);
+    $wonNotifs = $stmt->fetchAll();
+
+    if (!empty($wonNotifs)) {
+        $ids = implode(',', array_column($wonNotifs, 'id'));
+        $db->exec("UPDATE bets SET notified=1 WHERE id IN ($ids)");
+        echo '<div id="winnerOverlay" style="position:fixed;inset:0;z-index:998;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px)" onclick="closeWinner()"></div>';
+        echo '<div id="winnerPanel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999;background:var(--bg2);border:2px solid rgba(201,168,76,0.4);border-radius:16px;padding:32px;max-width:480px;width:90vw;max-height:85vh;overflow-y:auto;box-shadow:0 0 60px rgba(201,168,76,0.25)">';
+        echo '<div style="text-align:center;margin-bottom:24px"><div style="font-size:64px;margin-bottom:8px">🏆</div>';
+        echo '<h2 style="font-family:var(--font-head);font-size:36px;letter-spacing:3px;color:var(--gold)">¡GANASTE!</h2>';
+        echo '<p style="color:var(--text-dim);font-size:14px;margin-top:6px">Acertaste el tiempo y jugador del gol</p></div>';
+        foreach ($wonNotifs as $w) {
+            echo '<div style="background:rgba(0,229,122,0.06);border:1px solid rgba(0,229,122,0.2);border-radius:12px;padding:16px;margin-bottom:12px">';
+            echo '<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">'.h($w['home_flag'].' '.$w['home_team'].' vs '.$w['away_team'].' '.$w['away_flag']).'</div>';
+            echo '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">';
+            echo '<div><div style="font-family:var(--font-sub);font-weight:700;font-size:14px;color:#fff">'.h($w['team']).' · Min '.(int)$w['minute'].'</div>';
+            if ($w['player_name']) echo '<div style="font-size:12px;color:var(--text-dim)">'.h($w['player_name']).'</div>';
+            echo '<div style="font-size:11px;color:var(--text-dim);margin-top:2px">'.(int)$w['total_winners'].' ganador'.($w['total_winners']>1?'es':'').'</div></div>';
+            echo '<div style="text-align:right"><div style="font-family:var(--font-head);font-size:32px;color:var(--green)">+'.formatCedenas((float)$w['prize_cedenas']).'</div>';
+            echo '<div style="font-size:11px;color:var(--green)">en tu wallet</div></div></div></div>';
+        }
+        echo '<div style="display:flex;gap:10px;margin-top:20px">';
+        echo '<a href="/index.php?page=ganadores" class="btn btn-primary" style="flex:1;text-align:center">Ver ganadores</a>';
+        echo '<button onclick="closeWinner()" class="btn btn-ghost">Cerrar</button></div></div>';
+        echo '<script>function closeWinner(){document.getElementById("winnerOverlay").remove();document.getElementById("winnerPanel").remove();}</script>';
+    }
+
+    // ---- Recargas aprobadas/rechazadas ----
+    $stmt = $db->prepare("SELECT * FROM recharge_requests WHERE user_id=? AND status IN ('approved','rejected') AND notified=0 ORDER BY reviewed_at DESC LIMIT 3");
+    $stmt->execute([$_notifUser['id']]);
+    $rechargeNotifs = $stmt->fetchAll();
+    if (!empty($rechargeNotifs)) {
+        $ids = implode(',', array_column($rechargeNotifs, 'id'));
+        $db->exec("UPDATE recharge_requests SET notified=1 WHERE id IN ($ids)");
+        foreach ($rechargeNotifs as $r) {
+            $isOk   = $r['status'] === 'approved';
+            $rid    = 'rn_'.$r['id'];
+            $color  = $isOk ? 'var(--green)' : 'var(--red)';
+            $border = $isOk ? 'rgba(0,229,122,0.2)' : 'rgba(255,61,90,0.2)';
+            $bg     = $isOk ? 'rgba(0,229,122,0.06)' : 'rgba(255,61,90,0.06)';
+            echo "<div id='$rid' style='position:fixed;bottom:24px;right:24px;z-index:1000;background:var(--bg2);border:1px solid {$border};border-radius:12px;padding:18px 20px;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.4)'>";
+            echo "<div style='display:flex;gap:12px;align-items:flex-start'>";
+            echo "<div style='font-size:28px'>".($isOk ? '✅' : '❌')."</div>";
+            echo "<div style='flex:1'>";
+            echo "<div style='font-family:var(--font-head);font-size:15px;color:{$color}'>".($isOk ? '¡RECARGA APROBADA!' : 'RECARGA RECHAZADA')."</div>";
+            echo "<div style='font-size:13px;color:#fff;margin-top:4px'>";
+            if ($isOk) echo "Se acreditaron <strong style='color:var(--gold)'>".formatCedenas((float)$r['amount_cedenas'])."</strong>";
+            else echo "Tu recarga de <strong>".formatCedenas((float)$r['amount_cedenas'])."</strong> fue rechazada";
+            echo "</div>";
+            if (!empty($r['review_notes'])) echo "<div style='font-size:11px;color:var(--text-dim);margin-top:6px;background:var(--bg3);border-radius:6px;padding:6px'>".h($r['review_notes'])."</div>";
+            if ($isOk) echo "<a href='/index.php?page=matches' style='display:block;text-align:center;margin-top:10px;padding:7px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);border-radius:6px;color:var(--gold);text-decoration:none;font-size:12px;font-family:var(--font-sub);font-weight:700'>⚽ Ir a apostar →</a>";
+            echo "</div>";
+            echo "<button onclick="document.getElementById('$rid').remove()" style='background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;padding:0'>×</button>";
+            echo "</div></div>";
+        }
+    }
+
+    // ---- Apuestas perdidas ----
+    $stmt = $db->prepare("SELECT b.*, m.home_team, m.away_team FROM bets b JOIN matches m ON b.match_id=m.id WHERE b.user_id=? AND b.status='lost' AND b.notified=0 ORDER BY b.created_at DESC LIMIT 3");
+    $stmt->execute([$_notifUser['id']]);
+    $lostNotifs = $stmt->fetchAll();
+    if (!empty($lostNotifs)) {
+        $ids = implode(',', array_column($lostNotifs, 'id'));
+        $db->exec("UPDATE bets SET notified=1 WHERE id IN ($ids)");
+        $lid = 'lost_notif';
+        echo "<div id='$lid' style='position:fixed;bottom:24px;left:24px;z-index:1000;background:var(--bg2);border:1px solid rgba(255,61,90,0.2);border-radius:12px;padding:16px 20px;max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.4)'>";
+        echo "<div style='display:flex;justify-content:space-between;align-items:flex-start'>";
+        echo "<div><div style='font-family:var(--font-head);font-size:14px;color:var(--red);margin-bottom:6px'>😔 NO ACERTASTE</div>";
+        foreach ($lostNotifs as $l) {
+            echo "<div style='font-size:11px;color:var(--text-dim);margin-bottom:3px'>".h($l['home_team'])." vs ".h($l['away_team'])." · Min ".(int)$l['minute']."</div>";
+        }
+        echo "<div style='font-size:11px;color:var(--text-dim);margin-top:6px'>¡Intentalo de nuevo! 💪</div></div>";
+        echo "<button onclick="document.getElementById('$lid').remove()" style='background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;padding:0;margin-left:8px'>×</button>";
+        echo "</div></div>";
+    }
+}
+
 switch ($page) {
     case 'home':     pageHome($user);     break;
     case 'login':    pageLogin();         break;
