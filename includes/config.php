@@ -314,7 +314,7 @@ function resolveMatch(int $matchId): array {
                 $params[] = (int)$g['minute'];
             }
         }
-        $stmt = $db->prepare("SELECT * FROM bets WHERE match_id = ? AND status = 'pending' AND (".implode(' OR ',$conds).")");
+        $stmt = $db->prepare("SELECT b.*, u.username FROM bets b JOIN users u ON u.id = b.user_id WHERE b.match_id = ? AND b.status = 'pending' AND (".implode(' OR ',$conds).")");
         $stmt->execute($params);
         $allMatching = $stmt->fetchAll();
 

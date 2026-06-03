@@ -56,3 +56,28 @@ function notifyNewBet(array $user, string $match, string $team, int $minute, flo
         . "🏳 ".htmlspecialchars($team)." — Min <b>{$minute}</b>\n"
         . "₵ ".number_format($amount,2,'.',',')." Cedenas");
 }
+
+function notifyMatchWinners(string $matchName, array $winners, float $potTotal, float $commission): void {
+    if (empty($winners)) {
+        $msg = "📦 <b>PARTIDO RESUELTO — SIN GANADORES</b>\n\n"
+             . "⚽ <b>Partido:</b> ".htmlspecialchars($matchName)."\n"
+             . "💰 <b>Pozo total:</b> ₵".number_format($potTotal,2,'.',',')."\n\n"
+             . "➡️ El pozo se acumula al siguiente partido.";
+    } else {
+        $prizeEach = round(($potTotal - $commission) / count($winners), 2);
+        $winnerLines = '';
+        foreach ($winners as $bet) {
+            $username = htmlspecialchars($bet['username'] ?? ('ID #'.$bet['user_id']));
+            $winnerLines .= "   🏆 <b>{$username}</b> — ".htmlspecialchars($bet['team'])." min <b>{$bet['minute']}</b> → +₵".number_format($prizeEach,2,'.',',')."\n";
+        }
+        $msg = "🎉 <b>PARTIDO RESUELTO — HAY GANADORES</b>\n\n"
+             . "⚽ <b>Partido:</b> ".htmlspecialchars($matchName)."\n"
+             . "👥 <b>Ganadores:</b> ".count($winners)."\n"
+             . "💰 <b>Pozo total:</b> ₵".number_format($potTotal,2,'.',',')."\n"
+             . "🏠 <b>Comisión:</b> ₵".number_format($commission,2,'.',',')."\n"
+             . "🎁 <b>Premio por ganador:</b> ₵".number_format($prizeEach,2,'.',',')."\n\n"
+             . "<b>Detalle:</b>\n"
+             . $winnerLines;
+    }
+    sendTelegram($msg);
+}
