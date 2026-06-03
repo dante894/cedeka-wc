@@ -351,8 +351,8 @@ function handlePost(string $page, ?array $user): void {
         $notes  = trim($_POST['receipt_notes'] ?? '');
 
         // Validar monto - mínimo $250 ARS
-        if ($amount < 250 || $amount > 1000000) {
-            flash('error', 'Monto inválido. Mínimo $250 ARS');
+        if ($amount < 1000 || $amount > 50000) {
+            flash('error', 'Monto inválido. Mínimo $1.000 ARS, máximo $50.000 ARS');
             redirect('/index.php?page=recharge');
         }
 
@@ -988,8 +988,8 @@ function pageWallet(?array $user): void {
 // ---- RECHARGE ----
 function pageRecharge(?array $user): void {
     $user = requireLogin();
-    $cvu     = '0000003100081060403974';
-    $minRecharge = 250;
+    $cenek_user = 'Dnt894';
+    $minRecharge = 1000;
 ?>
 <div class="page-wrap" style="max-width:600px">
   <?php renderFlash(); ?>
@@ -1003,7 +1003,7 @@ function pageRecharge(?array $user): void {
       <div style="width:32px;height:32px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:18px;color:#000;flex-shrink:0">1</div>
       <div>
         <div style="font-family:var(--font-sub);font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:1px">Transferí vía Ceneka</div>
-        <div style="font-size:12px;color:var(--text-dim)">Usá tu app bancaria o Ceneka para transferir al CVU</div>
+        <div style="font-size:12px;color:var(--text-dim)">Entrá a ceneka.net y transferí directamente al usuario</div>
       </div>
     </div>
 
@@ -1016,16 +1016,16 @@ function pageRecharge(?array $user): void {
 
       <div style="display:grid;gap:12px">
         <div style="background:var(--bg2);border-radius:8px;padding:14px 16px">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:4px">CVU</div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:4px">Usuario Ceneka</div>
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-family:monospace;font-size:15px;color:#fff;letter-spacing:1px"><?= $cvu ?></span>
-            <button onclick="copyToClipboard('<?= $cvu ?>', this)" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px">📋 Copiar</button>
+            <a href="https://ceneka.net/<?= $cenek_user ?>" target="_blank" style="font-family:monospace;font-size:15px;color:var(--gold);letter-spacing:1px;text-decoration:none">ceneka.net/<?= $cenek_user ?></a>
+            <button onclick="copyToClipboard('<?= $cenek_user ?>', this)" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px">📋 Copiar</button>
           </div>
         </div>
 
         <div style="background:var(--bg2);border-radius:8px;padding:14px 16px">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:4px">Titular</div>
-          <div style="font-size:15px;color:#fff;font-weight:600">Cedeka World Cup</div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:4px">Plataforma</div>
+          <div style="font-size:15px;color:#fff;font-weight:600">Ceneka · Transferencia directa</div>
         </div>
       </div>
 
@@ -1038,7 +1038,7 @@ function pageRecharge(?array $user): void {
     <div style="margin-bottom:4px">
       <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Montos sugeridos</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <?php foreach ([250,500,1000,2000,5000,10000] as $m): ?>
+        <?php foreach ([1000,2000,5000,10000,25000,50000] as $m): ?>
         <div onclick="document.getElementById('amountInput').value=<?=$m?>;updatePreview(<?=$m?>)"
           style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all 0.2s"
           onmouseover="this.style.borderColor='rgba(201,168,76,0.4)'"
@@ -1070,7 +1070,7 @@ function pageRecharge(?array $user): void {
         <label class="form-label">¿Cuánto transferiste? (en pesos ARS)</label>
         <div style="position:relative">
           <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-family:var(--font-sub);font-weight:700">$</span>
-          <input type="number" name="amount" id="amountInput" class="form-control" min="250" max="1000000" step="1"
+          <input type="number" name="amount" id="amountInput" class="form-control" min="1000" max="50000" step="1"
                  placeholder="Ej: 1000" required style="padding-left:28px"
                  oninput="updatePreview(this.value)">
         </div>
@@ -1108,8 +1108,8 @@ function pageRecharge(?array $user): void {
 function updatePreview(val) {
   const n  = parseInt(val) || 0;
   const el = document.getElementById('cedenasPreview');
-  if (n > 0 && n < 250) {
-    el.textContent = '⚠️ Mínimo $250 ARS';
+  if (n > 0 && n < 1000) {
+    el.textContent = '⚠️ Mínimo $1.000 ARS';
     el.style.color = 'var(--red)';
   } else {
     el.textContent = n > 0 ? '= ' + n.toLocaleString('es-AR') + ' Cedenas ₵' : '= 0 Cedenas ₵';
@@ -1474,7 +1474,7 @@ function pageComoFunciona(): void { ?>
         <div style="width:48px;height:48px;background:rgba(201,168,76,0.15);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:22px;color:var(--gold);flex-shrink:0">1</div>
         <div>
           <div style="font-family:var(--font-sub);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:6px">Cargá tus Cedenas</div>
-          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Transferí pesos argentinos al CVU de Ceneka. Cada $1 ARS = 1 Cedena ₵. El mínimo es $250 ARS. Avisanos por el formulario y acreditamos en menos de 24hs.</p>
+          <p style="color:var(--text-dim);font-size:14px;line-height:1.6">Transferí pesos argentinos al CVU de Ceneka. Cada $1 ARS = 1 Cedena ₵. El mínimo es $1.000 ARS y el máximo $50.000 ARS. Avisanos por el formulario y acreditamos en menos de 24hs.</p>
         </div>
       </div>
     </div>
