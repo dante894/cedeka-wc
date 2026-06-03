@@ -1539,7 +1539,7 @@ function pageComoFunciona(): void { ?>
         ['🎯', 'Para ganar hay que acertar equipo + minuto exacto del gol'],
         ['⚽', 'Si nadie acierta, el pozo se acumula al siguiente partido'],
         ['🔒', 'Cuando el partido cierra ya no se aceptan más apuestas'],
-        ['💰', 'El mínimo de apuesta es ₵250 (equivale a $250 ARS)'],
+        ['💰', 'El mínimo de apuesta es ₵1.000 (equivale a $1.000 ARS)'],
         ['📱', 'Una sola sesión activa por usuario a la vez'],
         ['🏆', 'Si varios aciertan, el premio se divide en partes iguales'],
         ['⚡', 'Los premios se acreditan automáticamente en tu wallet'],
