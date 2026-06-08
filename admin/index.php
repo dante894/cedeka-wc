@@ -428,6 +428,7 @@ function adminMatchNew(): void {
         'Brasil'               => 'br',
         'Colombia'             => 'co',
         'Ecuador'              => 'ec',
+        'Paraguay'             => 'py',
         'Uruguay'              => 'uy',
         'Venezuela'            => 've',
         // CONCACAF (6)
