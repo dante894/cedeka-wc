@@ -398,25 +398,98 @@ function adminMatches(): void {
 </div>
 <?php }
 
-function adminMatchNew(): void { ?>
+function adminMatchNew(): void {
+    // Lista completa de selecciones con bandera emoji
+    $teams = [
+        'Albania'      => '🇦🇱', 'Alemania'     => '🇩🇪', 'Arabia Saudita' => '🇸🇦',
+        'Argentina'    => '🇦🇷', 'Australia'    => '🇦🇺', 'Austria'      => '🇦🇹',
+        'Bélgica'      => '🇧🇪', 'Bolivia'      => '🇧🇴', 'Brasil'       => '🇧🇷',
+        'Camerún'      => '🇨🇲', 'Canadá'       => '🇨🇦', 'Chile'        => '🇨🇱',
+        'China'        => '🇨🇳', 'Colombia'     => '🇨🇴', 'Corea del Sur' => '🇰🇷',
+        'Costa Rica'   => '🇨🇷', 'Croacia'      => '🇭🇷', 'Dinamarca'    => '🇩🇰',
+        'Ecuador'      => '🇪🇨', 'Egipto'       => '🇪🇬', 'Escocia'      => '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+        'Eslovaquia'   => '🇸🇰', 'Eslovenia'    => '🇸🇮', 'España'       => '🇪🇸',
+        'Estados Unidos' => '🇺🇸', 'Francia'    => '🇫🇷', 'Ghana'        => '🇬🇭',
+        'Grecia'       => '🇬🇷', 'Honduras'     => '🇭🇳', 'Hungría'      => '🇭🇺',
+        'Inglaterra'   => '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Iran'         => '🇮🇷', 'Irak'         => '🇮🇶',
+        'Irlanda'      => '🇮🇪', 'Islandia'     => '🇮🇸', 'Israel'       => '🇮🇱',
+        'Italia'       => '🇮🇹', 'Japón'        => '🇯🇵', 'Kazajistán'   => '🇰🇿',
+        'Kenia'        => '🇰🇪', 'Marruecos'    => '🇲🇦', 'México'       => '🇲🇽',
+        'Nigeria'      => '🇳🇬', 'Noruega'      => '🇳🇴', 'Nueva Zelanda' => '🇳🇿',
+        'Países Bajos' => '🇳🇱', 'Panamá'       => '🇵🇦', 'Paraguay'     => '🇵🇾',
+        'Perú'         => '🇵🇪', 'Polonia'      => '🇵🇱', 'Portugal'     => '🇵🇹',
+        'Qatar'        => '🇶🇦', 'República Checa' => '🇨🇿', 'Rumanía'   => '🇷🇴',
+        'Rusia'        => '🇷🇺', 'Senegal'      => '🇸🇳', 'Serbia'       => '🇷🇸',
+        'Suecia'       => '🇸🇪', 'Suiza'        => '🇨🇭', 'Túnez'        => '🇹🇳',
+        'Turquía'      => '🇹🇷', 'Ucrania'      => '🇺🇦', 'Uruguay'      => '🇺🇾',
+        'Venezuela'    => '🇻🇪',
+    ];
+    ksort($teams);
+    $teamsJson = json_encode($teams, JSON_UNESCAPED_UNICODE);
+?>
 <h1 class="page-title">NUEVO <span>PARTIDO</span></h1>
 <?php renderFlash(); ?>
 <div class="card" style="max-width:600px">
   <form method="POST" action="/admin/index.php?page=match_new">
     <?php csrfField(); ?>
     <input type="hidden" name="action" value="add_match">
+
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Bandera Local</label><input type="text" name="home_flag" class="form-control" placeholder="🇧🇷" value="🏳" maxlength="10"></div>
-      <div class="form-group"><label class="form-label">Equipo Local</label><input type="text" name="home_team" class="form-control" placeholder="Brasil" required maxlength="80"></div>
+      <div class="form-group" style="flex:0 0 80px">
+        <label class="form-label">Bandera</label>
+        <input type="text" id="home_flag_display" class="form-control" readonly
+               style="font-size:1.6rem;text-align:center;cursor:default" value="🏳">
+        <input type="hidden" name="home_flag" id="home_flag_value" value="🏳">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Equipo Local</label>
+        <select name="home_team" id="home_team_select" class="form-control" required onchange="setFlag('home')">
+          <option value="">— Seleccionar equipo —</option>
+          <?php foreach ($teams as $name => $flag): ?>
+          <option value="<?= htmlspecialchars($name) ?>" data-flag="<?= $flag ?>"><?= $flag ?> <?= htmlspecialchars($name) ?></option>
+          <?php endforeach; ?>
+        </select>
+
+      </div>
     </div>
+
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Bandera Visitante</label><input type="text" name="away_flag" class="form-control" placeholder="🇦🇷" value="🏳" maxlength="10"></div>
-      <div class="form-group"><label class="form-label">Equipo Visitante</label><input type="text" name="away_team" class="form-control" placeholder="Argentina" required maxlength="80"></div>
+      <div class="form-group" style="flex:0 0 80px">
+        <label class="form-label">Bandera</label>
+        <input type="text" id="away_flag_display" class="form-control" readonly
+               style="font-size:1.6rem;text-align:center;cursor:default" value="🏳">
+        <input type="hidden" name="away_flag" id="away_flag_value" value="🏳">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Equipo Visitante</label>
+        <select name="away_team" id="away_team_select" class="form-control" required onchange="setFlag('away')">
+          <option value="">— Seleccionar equipo —</option>
+          <?php foreach ($teams as $name => $flag): ?>
+          <option value="<?= htmlspecialchars($name) ?>" data-flag="<?= $flag ?>"><?= $flag ?> <?= htmlspecialchars($name) ?></option>
+          <?php endforeach; ?>
+        </select>
+
+      </div>
     </div>
-    <div class="form-group"><label class="form-label">Fecha y Hora</label><input type="datetime-local" name="match_date" class="form-control" required></div>
+
+    <div class="form-group">
+      <label class="form-label">Fecha y Hora</label>
+      <input type="datetime-local" name="match_date" class="form-control" required>
+    </div>
     <button type="submit" class="btn btn-primary btn-block">Crear Partido ⚽</button>
   </form>
 </div>
+<script>
+function setFlag(side) {
+  var sel   = document.getElementById(side + '_team_select');
+  var opt   = sel.options[sel.selectedIndex];
+  var flag  = opt ? (opt.getAttribute('data-flag') || '🏳') : '🏳';
+  var name  = opt ? opt.value : '';
+  document.getElementById(side + '_flag_display').value = flag;
+  document.getElementById(side + '_flag_value').value   = flag;
+}
+
+</script>
 <?php }
 
 function adminGoals(): void {
