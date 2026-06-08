@@ -7,6 +7,12 @@ require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/includes/telegram.php';
 
+// Renderiza bandera como <img> desde flagcdn.com (código ISO 2 letras o gb-sct/gb-eng)
+function flagImg(string $iso, int $h = 28): string {
+    if ($iso === '') return '<span style="font-size:'.($h-4).'px">🏳</span>';
+    $url = 'https://flagcdn.com/' . strtolower($iso) . '.svg';
+    return '<img src="'.htmlspecialchars($url).'" height="'.$h.'" style="vertical-align:middle;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)" loading="lazy" alt="'.htmlspecialchars($iso).'">';
+}
 
 startSession();
 $page = $_GET['page'] ?? 'home';
@@ -55,7 +61,7 @@ if ($_notifUser && $_notifUser['role'] !== 'admin') {
         echo '<p style="color:var(--text-dim);font-size:14px;margin-top:6px">Acertaste el tiempo y jugador del gol</p></div>';
         foreach ($wonNotifs as $w) {
             echo '<div style="background:rgba(0,229,122,0.06);border:1px solid rgba(0,229,122,0.2);border-radius:12px;padding:16px;margin-bottom:12px">';
-            echo '<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">'.h($w['home_flag'].' '.$w['home_team'].' vs '.$w['away_team'].' '.$w['away_flag']).'</div>';
+            echo '<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">'.flagImg($w['home_flag'], 18).' '.h($w['home_team']).' vs '.h($w['away_team']).' '.flagImg($w['away_flag'], 18).'</div>';
             echo '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">';
             echo '<div><div style="font-family:var(--font-sub);font-weight:700;font-size:14px;color:#fff">'.h($w['team']).' · Min '.(int)$w['minute'].'</div>';
             if ($w['player_name']) echo '<div style="font-size:12px;color:var(--text-dim)">'.h($w['player_name']).'</div>';
@@ -397,7 +403,7 @@ function renderMatchScore(array $m, array $goals): void {
 ?>
 <div class="match-teams" style="margin-bottom:6px">
   <div class="match-team">
-    <span class="team-flag"><?= h($m['home_flag']) ?></span>
+    <span class="team-flag"><?= flagImg($m['home_flag'], 28) ?></span>
     <span><?= h($m['home_team']) ?></span>
   </div>
   <div style="text-align:center;min-width:60px">
@@ -410,7 +416,7 @@ function renderMatchScore(array $m, array $goals): void {
     <?php endif; ?>
   </div>
   <div class="match-team away">
-    <span class="team-flag"><?= h($m['away_flag']) ?></span>
+    <span class="team-flag"><?= flagImg($m['away_flag'], 28) ?></span>
     <span><?= h($m['away_team']) ?></span>
   </div>
 </div>
@@ -689,14 +695,14 @@ function pageBet(?array $user): void {
     </div>
     <div class="match-teams" style="padding:16px 0">
       <div class="match-team" style="font-size:24px;gap:14px">
-        <span style="font-size:42px"><?= h($match['home_flag']) ?></span><span><?= h($match['home_team']) ?></span>
+        <span><?= flagImg($match['home_flag'], 48) ?></span><span><?= h($match['home_team']) ?></span>
       </div>
       <div style="text-align:center">
         <div style="font-family:var(--font-head);font-size:32px;letter-spacing:4px;color:var(--muted)">VS</div>
         <div style="color:var(--gold);font-family:var(--font-sub);font-weight:700;font-size:13px;margin-top:4px">POZO: <?= formatCedenas((float)$match['pot_total']) ?></div>
       </div>
       <div class="match-team away" style="font-size:24px;gap:14px">
-        <span style="font-size:42px"><?= h($match['away_flag']) ?></span><span><?= h($match['away_team']) ?></span>
+        <span><?= flagImg($match['away_flag'], 48) ?></span><span><?= h($match['away_team']) ?></span>
       </div>
     </div>
     <?php if ($goals): ?>
@@ -809,13 +815,13 @@ function pageBet(?array $user): void {
     <div class="grid-2 mb-3" style="gap:12px">
       <button type="button" class="team-btn" data-team="<?= h($match['home_team']) ?>" id="btn-home"
         style="cursor:pointer;text-align:center;transition:all 0.25s;border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:24px 16px;background:var(--bg3);color:var(--text);width:100%">
-        <div style="font-size:48px;line-height:1;margin-bottom:10px"><?= h($match['home_flag']) ?></div>
+        <div style="line-height:1;margin-bottom:10px"><?= flagImg($match['home_flag'], 56) ?></div>
         <div style="font-family:var(--font-sub);font-weight:700;font-size:20px;color:#fff"><?= h($match['home_team']) ?></div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:4px;text-transform:uppercase;letter-spacing:1px">Equipo Local</div>
       </button>
       <button type="button" class="team-btn" data-team="<?= h($match['away_team']) ?>" id="btn-away"
         style="cursor:pointer;text-align:center;transition:all 0.25s;border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:24px 16px;background:var(--bg3);color:var(--text);width:100%">
-        <div style="font-size:48px;line-height:1;margin-bottom:10px"><?= h($match['away_flag']) ?></div>
+        <div style="line-height:1;margin-bottom:10px"><?= flagImg($match['away_flag'], 56) ?></div>
         <div style="font-family:var(--font-sub);font-weight:700;font-size:20px;color:#fff"><?= h($match['away_team']) ?></div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:4px;text-transform:uppercase;letter-spacing:1px">Equipo Visitante</div>
       </button>
@@ -907,7 +913,7 @@ function pageMyBets(?array $user): void {
         <tbody>
         <?php foreach ($bets as $b): ?>
         <tr>
-          <td class="fs-sm"><?= h($b['home_flag']) ?> <?= h($b['home_team']) ?> <span class="text-muted">vs</span> <?= h($b['away_team']) ?> <?= h($b['away_flag']) ?></td>
+          <td class="fs-sm"><?= flagImg($b['home_flag'], 20) ?> <?= h($b['home_team']) ?> <span class="text-muted">vs</span> <?= h($b['away_team']) ?> <?= flagImg($b['away_flag'], 20) ?></td>
           <td class="fw-bold font-sub"><?= h($b['team']) ?></td>
           <td><span class="badge badge-pending">Min <?= (int)$b['minute'] ?></span></td>
           <td><?= formatCedenas((float)$b['amount_cedenas']) ?></td>
@@ -1642,7 +1648,7 @@ function pageGanadores(?array $user): void {
     <select class="form-control" onchange="location='/index.php?page=ganadores&match_id='+this.value">
       <?php foreach ($finished as $m): ?>
       <option value="<?= (int)$m['id'] ?>" <?= $m['id']==$matchId?'selected':'' ?>>
-        <?= h($m['home_flag'].' '.$m['home_team'].' vs '.$m['away_team'].' '.$m['away_flag']) ?>
+        <?= flagImg($m['home_flag'], 18) ?> <?= h($m['home_team']) ?> vs <?= h($m['away_team']) ?> <?= flagImg($m['away_flag'], 18) ?>
         — <?= date('d M Y', strtotime($m['match_date'])) ?>
         <?php if ($m['winner_count'] > 0): ?>(<?= (int)$m['winner_count'] ?> ganador<?= $m['winner_count']>1?'es':'' ?>)<?php else: ?>(Sin ganadores)<?php endif; ?>
       </option>
@@ -1658,7 +1664,7 @@ function pageGanadores(?array $user): void {
       <div style="font-size:14px;color:var(--text-dim);margin-bottom:8px"><?= date('d \d\e F Y', strtotime($selected['match_date'])) ?></div>
       <div style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap">
         <div style="text-align:center">
-          <div style="font-size:48px"><?= h($selected['home_flag']) ?></div>
+          <div style="line-height:1;margin-bottom:10px"><?= flagImg($selected['home_flag'], 56) ?></div>
           <div style="font-family:var(--font-sub);font-weight:700;font-size:20px;color:#fff"><?= h($selected['home_team']) ?></div>
         </div>
         <?php
@@ -1670,7 +1676,7 @@ function pageGanadores(?array $user): void {
           <span class="badge badge-done">✅ Finalizado</span>
         </div>
         <div style="text-align:center">
-          <div style="font-size:48px"><?= h($selected['away_flag']) ?></div>
+          <div style="line-height:1;margin-bottom:10px"><?= flagImg($selected['away_flag'], 56) ?></div>
           <div style="font-family:var(--font-sub);font-weight:700;font-size:20px;color:#fff"><?= h($selected['away_team']) ?></div>
         </div>
       </div>

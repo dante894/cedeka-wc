@@ -6,6 +6,13 @@ ob_start();
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/telegram.php';
+
+// Renderiza bandera como <img> desde flagcdn.com
+function flagImg(string $iso, int $h = 24): string {
+    if ($iso === '') return '<span style="font-size:'.($h-2).'px">🏳</span>';
+    $url = 'https://flagcdn.com/' . strtolower($iso) . '.svg';
+    return '<img src="'.htmlspecialchars($url).'" height="'.$h.'" style="vertical-align:middle;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)" loading="lazy" alt="'.htmlspecialchars($iso).'">';
+}
 require_once __DIR__ . '/../includes/telegram.php';
 
 
@@ -148,8 +155,8 @@ function adminHandlePost(array $admin): void {
     if ($action === 'add_match') {
         $home  = mb_substr(trim($_POST['home_team'] ?? ''), 0, 80);
         $away  = mb_substr(trim($_POST['away_team'] ?? ''), 0, 80);
-        $hflag = mb_substr(trim($_POST['home_flag'] ?? '🏳'), 0, 10);
-        $aflag = mb_substr(trim($_POST['away_flag'] ?? '🏳'), 0, 10);
+        $hflag = mb_substr(trim($_POST['home_flag'] ?? ''), 0, 10);
+        $aflag = mb_substr(trim($_POST['away_flag'] ?? ''), 0, 10);
         $date  = trim($_POST['match_date'] ?? '');
 
         if (!$home || !$away || !$date) { flash('error','Faltan datos'); redirect('/admin/index.php?page=match_new'); }
@@ -361,7 +368,7 @@ function adminMatches(): void {
       <tbody>
       <?php foreach ($matches as $m): ?>
       <tr>
-        <td class="fw-bold"><?= h($m['home_flag']) ?> <?= h($m['home_team']) ?> vs <?= h($m['away_team']) ?> <?= h($m['away_flag']) ?></td>
+        <td class="fw-bold"><?= flagImg($m['home_flag'], 22) ?> <?= h($m['home_team']) ?> vs <?= h($m['away_team']) ?> <?= flagImg($m['away_flag'], 22) ?></td>
         <td class="fs-sm"><?= date('d M Y H:i', strtotime($m['match_date'])) ?></td>
         <td>
           <form method="POST" action="/admin/index.php?page=matches" style="display:inline-flex;gap:6px;align-items:center">
@@ -400,62 +407,74 @@ function adminMatches(): void {
 
 function adminMatchNew(): void {
     // Lista completa de selecciones con bandera emoji
-    // 48 selecciones clasificadas al Mundial 2026
+    // Renderiza una bandera como imagen (flagcdn.com, código ISO 2 letras)
+    // gb-sct = Escocia, gb-eng = Inglaterra (subdivisiones)
+    function flagImg(string $iso, int $h = 24): string {
+        if (str_contains($iso, '-')) {
+            // subdivisión: gb-sct, gb-eng
+            $url = "https://flagcdn.com/".strtolower($iso).".svg";
+        } else {
+            $url = "https://flagcdn.com/".strtolower($iso).".svg";
+        }
+        return '<img src="'.htmlspecialchars($url).'" height="'.$h.'" style="vertical-align:middle;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)" alt="'.htmlspecialchars($iso).'">';
+    }
+
+    // 48 selecciones clasificadas al Mundial 2026  [nombre => código ISO flagcdn]
     $teams = [
         // UEFA (16)
-        'Alemania'             => '🇩🇪',
-        'Austria'              => '🇦🇹',
-        'Bélgica'              => '🇧🇪',
-        'Bosnia y Herzegovina' => '🇧🇦',
-        'España'               => '🇪🇸',
-        'Escocia'              => '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-        'Francia'              => '🇫🇷',
-        'Inglaterra'           => '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-        'Noruega'              => '🇳🇴',
-        'Países Bajos'         => '🇳🇱',
-        'Portugal'             => '🇵🇹',
-        'República Checa'      => '🇨🇿',
-        'Suecia'               => '🇸🇪',
-        'Suiza'                => '🇨🇭',
-        'Turquía'              => '🇹🇷',
-        'Croacia'              => '🇭🇷',
+        'Alemania'             => 'de',
+        'Austria'              => 'at',
+        'Bélgica'              => 'be',
+        'Bosnia y Herzegovina' => 'ba',
+        'Croacia'              => 'hr',
+        'Escocia'              => 'gb-sct',
+        'España'               => 'es',
+        'Francia'              => 'fr',
+        'Inglaterra'           => 'gb-eng',
+        'Noruega'              => 'no',
+        'Países Bajos'         => 'nl',
+        'Portugal'             => 'pt',
+        'República Checa'      => 'cz',
+        'Suecia'               => 'se',
+        'Suiza'                => 'ch',
+        'Turquía'              => 'tr',
         // CONMEBOL (6)
-        'Argentina'            => '🇦🇷',
-        'Brasil'               => '🇧🇷',
-        'Colombia'             => '🇨🇴',
-        'Ecuador'              => '🇪🇨',
-        'Uruguay'              => '🇺🇾',
-        'Venezuela'            => '🇻🇪',
+        'Argentina'            => 'ar',
+        'Brasil'               => 'br',
+        'Colombia'             => 'co',
+        'Ecuador'              => 'ec',
+        'Uruguay'              => 'uy',
+        'Venezuela'            => 've',
         // CONCACAF (6)
-        'Canadá'               => '🇨🇦',
-        'Curazao'              => '🇨🇼',
-        'Estados Unidos'       => '🇺🇸',
-        'Haití'                => '🇭🇹',
-        'México'               => '🇲🇽',
-        'Panamá'               => '🇵🇦',
+        'Canadá'               => 'ca',
+        'Curazao'              => 'cw',
+        'Estados Unidos'       => 'us',
+        'Haití'                => 'ht',
+        'México'               => 'mx',
+        'Panamá'               => 'pa',
         // AFC (9)
-        'Arabia Saudita'       => '🇸🇦',
-        'Australia'            => '🇦🇺',
-        'Catar'                => '🇶🇦',
-        'Corea del Sur'        => '🇰🇷',
-        'Irak'                 => '🇮🇶',
-        'Irán'                 => '🇮🇷',
-        'Japón'                => '🇯🇵',
-        'Jordania'             => '🇯🇴',
-        'Uzbekistán'           => '🇺🇿',
+        'Arabia Saudita'       => 'sa',
+        'Australia'            => 'au',
+        'Catar'                => 'qa',
+        'Corea del Sur'        => 'kr',
+        'Irak'                 => 'iq',
+        'Irán'                 => 'ir',
+        'Japón'                => 'jp',
+        'Jordania'             => 'jo',
+        'Uzbekistán'           => 'uz',
         // CAF (10)
-        'Argelia'              => '🇩🇿',
-        'Cabo Verde'           => '🇨🇻',
-        'Costa de Marfil'      => '🇨🇮',
-        'Egipto'               => '🇪🇬',
-        'Ghana'                => '🇬🇭',
-        'Marruecos'            => '🇲🇦',
-        'RD del Congo'         => '🇨🇩',
-        'Senegal'              => '🇸🇳',
-        'Sudáfrica'            => '🇿🇦',
-        'Túnez'                => '🇹🇳',
+        'Argelia'              => 'dz',
+        'Cabo Verde'           => 'cv',
+        'Costa de Marfil'      => 'ci',
+        'Egipto'               => 'eg',
+        'Ghana'                => 'gh',
+        'Marruecos'            => 'ma',
+        'RD del Congo'         => 'cd',
+        'Senegal'              => 'sn',
+        'Sudáfrica'            => 'za',
+        'Túnez'                => 'tn',
         // OFC (1)
-        'Nueva Zelanda'        => '🇳🇿',
+        'Nueva Zelanda'        => 'nz',
     ];
     ksort($teams);
     $teamsJson = json_encode($teams, JSON_UNESCAPED_UNICODE);
@@ -468,40 +487,40 @@ function adminMatchNew(): void {
     <input type="hidden" name="action" value="add_match">
 
     <div class="form-row">
-      <div class="form-group" style="flex:0 0 80px">
+      <div class="form-group" style="flex:0 0 70px;text-align:center">
         <label class="form-label">Bandera</label>
-        <input type="text" id="home_flag_display" class="form-control" readonly
-               style="font-size:1.6rem;text-align:center;cursor:default" value="🏳">
-        <input type="hidden" name="home_flag" id="home_flag_value" value="🏳">
+        <div id="home_flag_display" style="height:38px;display:flex;align-items:center;justify-content:center;background:var(--bg2,#1a2236);border:1px solid rgba(255,255,255,.1);border-radius:6px">
+          <span style="font-size:20px">🏳</span>
+        </div>
+        <input type="hidden" name="home_flag" id="home_flag_value" value="">
       </div>
       <div class="form-group" style="flex:1">
         <label class="form-label">Equipo Local</label>
         <select name="home_team" id="home_team_select" class="form-control" required onchange="setFlag('home')">
           <option value="">— Seleccionar equipo —</option>
-          <?php foreach ($teams as $name => $flag): ?>
-          <option value="<?= htmlspecialchars($name) ?>" data-flag="<?= $flag ?>"><?= $flag ?> <?= htmlspecialchars($name) ?></option>
+          <?php foreach ($teams as $name => $iso): ?>
+          <option value="<?= htmlspecialchars($name) ?>" data-iso="<?= htmlspecialchars($iso) ?>"><?= htmlspecialchars($name) ?></option>
           <?php endforeach; ?>
         </select>
-
       </div>
     </div>
 
     <div class="form-row">
-      <div class="form-group" style="flex:0 0 80px">
+      <div class="form-group" style="flex:0 0 70px;text-align:center">
         <label class="form-label">Bandera</label>
-        <input type="text" id="away_flag_display" class="form-control" readonly
-               style="font-size:1.6rem;text-align:center;cursor:default" value="🏳">
-        <input type="hidden" name="away_flag" id="away_flag_value" value="🏳">
+        <div id="away_flag_display" style="height:38px;display:flex;align-items:center;justify-content:center;background:var(--bg2,#1a2236);border:1px solid rgba(255,255,255,.1);border-radius:6px">
+          <span style="font-size:20px">🏳</span>
+        </div>
+        <input type="hidden" name="away_flag" id="away_flag_value" value="">
       </div>
       <div class="form-group" style="flex:1">
         <label class="form-label">Equipo Visitante</label>
         <select name="away_team" id="away_team_select" class="form-control" required onchange="setFlag('away')">
           <option value="">— Seleccionar equipo —</option>
-          <?php foreach ($teams as $name => $flag): ?>
-          <option value="<?= htmlspecialchars($name) ?>" data-flag="<?= $flag ?>"><?= $flag ?> <?= htmlspecialchars($name) ?></option>
+          <?php foreach ($teams as $name => $iso): ?>
+          <option value="<?= htmlspecialchars($name) ?>" data-iso="<?= htmlspecialchars($iso) ?>"><?= htmlspecialchars($name) ?></option>
           <?php endforeach; ?>
         </select>
-
       </div>
     </div>
 
@@ -514,14 +533,18 @@ function adminMatchNew(): void {
 </div>
 <script>
 function setFlag(side) {
-  var sel   = document.getElementById(side + '_team_select');
-  var opt   = sel.options[sel.selectedIndex];
-  var flag  = opt ? (opt.getAttribute('data-flag') || '🏳') : '🏳';
-  var name  = opt ? opt.value : '';
-  document.getElementById(side + '_flag_display').value = flag;
-  document.getElementById(side + '_flag_value').value   = flag;
+  var sel  = document.getElementById(side + '_team_select');
+  var opt  = sel.options[sel.selectedIndex];
+  var iso  = opt ? opt.getAttribute('data-iso') : '';
+  var box  = document.getElementById(side + '_flag_display');
+  document.getElementById(side + '_flag_value').value = iso || '';
+  if (iso) {
+    var url = 'https://flagcdn.com/' + iso + '.svg';
+    box.innerHTML = '<img src="' + url + '" height="28" style="border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)" alt="' + iso + '">';
+  } else {
+    box.innerHTML = '<span style="font-size:20px">🏳</span>';
+  }
 }
-
 </script>
 <?php }
 
@@ -544,7 +567,7 @@ function adminGoals(): void {
   <select class="form-control" onchange="location='/admin/index.php?page=goals&match_id='+this.value">
     <option value="">— Elige un partido —</option>
     <?php foreach ($allMatches as $m): ?>
-      <option value="<?= (int)$m['id'] ?>" <?= $m['id']==$matchId?'selected':'' ?>><?= h($m['home_flag'].' '.$m['home_team'].' vs '.$m['away_team'].' '.$m['away_flag']) ?> · <?= matchStatus($m['status']) ?></option>
+      <option value="<?= (int)$m['id'] ?>" <?= $m['id']==$matchId?'selected':'' ?>><?= h($m['home_team']) ?> vs <?= h($m['away_team']) ?> · <?= matchStatus($m['status']) ?></option>
     <?php endforeach; ?>
   </select>
 </div>
@@ -561,8 +584,8 @@ function adminGoals(): void {
         <div class="form-group">
           <label class="form-label">Equipo</label>
           <select name="team" class="form-control" required>
-            <option value="<?= h($match['home_team']) ?>"><?= h($match['home_flag'].' '.$match['home_team']) ?> (Local)</option>
-            <option value="<?= h($match['away_team']) ?>"><?= h($match['away_flag'].' '.$match['away_team']) ?> (Visitante)</option>
+            <option value="<?= h($match['home_team']) ?>"><?= h($match['home_team']) ?> (Local)</option>
+            <option value="<?= h($match['away_team']) ?>"><?= h($match['away_team']) ?> (Visitante)</option>
           </select>
         </div>
         <div class="form-group"><label class="form-label">Minuto (1–90)</label><input type="number" name="minute" class="form-control" min="1" max="90" required></div>
@@ -759,7 +782,7 @@ function adminPlayers(): void {
     <option value="">— Elige un partido —</option>
     <?php foreach ($allMatches as $m): ?>
       <option value="<?= (int)$m['id'] ?>" <?= $m['id']==$matchId?'selected':'' ?>>
-        <?= h($m['home_flag'].' '.$m['home_team'].' vs '.$m['away_team'].' '.$m['away_flag']) ?> · <?= matchStatus($m['status']) ?>
+        <?= flagImg($m['home_flag'], 18) ?> <?= h($m['home_team']) ?> vs <?= h($m['away_team']) ?> <?= flagImg($m['away_flag'], 18) ?> · <?= matchStatus($m['status']) ?>
       </option>
     <?php endforeach; ?>
   </select>
@@ -779,7 +802,7 @@ function adminPlayers(): void {
         <label class="form-label">Equipo</label>
         <select name="team" class="form-control" required>
           <option value="<?= h($match['home_team']) ?>"><?= h($match['home_flag'].' '.$match['home_team']) ?> (Local)</option>
-          <option value="<?= h($match['away_team']) ?>"><?= h($match['away_flag'].' '.$match['away_team']) ?> (Visitante)</option>
+          <option value="<?= h($match['away_team']) ?>"><?= h($match['away_team']) ?> (Visitante)</option>
         </select>
       </div>
       <div class="form-group">
