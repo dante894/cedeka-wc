@@ -7,14 +7,12 @@ require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/telegram.php';
 
-// Renderiza bandera como <img> desde flagcdn.com
+// Renderiza bandera como <img> desde flagcdn.com (ISO 2 letras, o gb-sct / gb-eng)
 function flagImg(string $iso, int $h = 24): string {
     if ($iso === '') return '<span style="font-size:'.($h-2).'px">🏳</span>';
     $url = 'https://flagcdn.com/' . strtolower($iso) . '.svg';
     return '<img src="'.htmlspecialchars($url).'" height="'.$h.'" style="vertical-align:middle;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)" loading="lazy" alt="'.htmlspecialchars($iso).'">';
 }
-require_once __DIR__ . '/../includes/telegram.php';
-
 
 startSession();
 $user = requireAdmin();
@@ -406,19 +404,6 @@ function adminMatches(): void {
 <?php }
 
 function adminMatchNew(): void {
-    // Lista completa de selecciones con bandera emoji
-    // Renderiza una bandera como imagen (flagcdn.com, código ISO 2 letras)
-    // gb-sct = Escocia, gb-eng = Inglaterra (subdivisiones)
-    function flagImg(string $iso, int $h = 24): string {
-        if (str_contains($iso, '-')) {
-            // subdivisión: gb-sct, gb-eng
-            $url = "https://flagcdn.com/".strtolower($iso).".svg";
-        } else {
-            $url = "https://flagcdn.com/".strtolower($iso).".svg";
-        }
-        return '<img src="'.htmlspecialchars($url).'" height="'.$h.'" style="vertical-align:middle;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)" alt="'.htmlspecialchars($iso).'">';
-    }
-
     // 48 selecciones clasificadas al Mundial 2026  [nombre => código ISO flagcdn]
     $teams = [
         // UEFA (16)

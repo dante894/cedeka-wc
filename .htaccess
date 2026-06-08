@@ -24,3 +24,5 @@ Options -Indexes
   php_value upload_max_filesize 5M
   php_value post_max_size 6M
 </IfModule>
+# .htaccess
+Header always set Content-Security-Policy "img-src 'self' https://flagcdn.com data:;"
