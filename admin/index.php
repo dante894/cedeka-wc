@@ -45,6 +45,7 @@ switch ($page) {
     case 'dashboard':  adminDashboard(); break;
     case 'matches':    adminMatches();   break;
     case 'match_new':  adminMatchNew();  break;
+    case 'match_edit': adminMatchEdit(); break;
     case 'goals':      adminGoals();     break;
     case 'players':    adminPlayers();   break;
     case 'recharges':  adminRecharges(); break;
@@ -163,6 +164,23 @@ function adminHandlePost(array $admin): void {
         $db->prepare("INSERT INTO matches (home_team,away_team,home_flag,away_flag,match_date) VALUES (?,?,?,?,?)")
            ->execute([$home, $away, $hflag, $aflag, $date]);
         flash('success','Partido creado ✅');
+        redirect('/admin/index.php?page=matches');
+    }
+
+    if ($action === 'edit_match') {
+        $matchId = (int)$_POST['match_id'];
+        $home    = mb_substr(trim($_POST['home_team'] ?? ''), 0, 80);
+        $away    = mb_substr(trim($_POST['away_team'] ?? ''), 0, 80);
+        $hflag   = mb_substr(trim($_POST['home_flag'] ?? ''), 0, 10);
+        $aflag   = mb_substr(trim($_POST['away_flag'] ?? ''), 0, 10);
+        $date    = trim($_POST['match_date'] ?? '');
+
+        if (!$home || !$away || !$date) { flash('error','Faltan datos'); redirect('/admin/index.php?page=match_edit&match_id='.$matchId); }
+        if (!strtotime($date))          { flash('error','Fecha inválida'); redirect('/admin/index.php?page=match_edit&match_id='.$matchId); }
+
+        $db->prepare("UPDATE matches SET home_team=?, away_team=?, home_flag=?, away_flag=?, match_date=? WHERE id=?")
+           ->execute([$home, $away, $hflag, $aflag, $date, $matchId]);
+        flash('success','Partido actualizado ✅');
         redirect('/admin/index.php?page=matches');
     }
 
@@ -386,6 +404,7 @@ function adminMatches(): void {
         <td><?= (int)$m['goal_count'] ?></td>
         <td style="display:flex;gap:6px">
           <a href="/admin/index.php?page=goals&match_id=<?= (int)$m['id'] ?>" class="btn btn-sm btn-ghost">🥅 Goles</a>
+          <a href="/admin/index.php?page=match_edit&match_id=<?= (int)$m['id'] ?>" class="btn btn-sm btn-ghost">✏️ Editar</a>
           <?php if ($m['status'] !== 'finished' || $m['bet_count'] == 0): ?>
           <form method="POST" action="/admin/index.php?page=matches" style="display:inline">
             <?php csrfField(); ?>
@@ -527,6 +546,108 @@ function setFlag(side) {
   if (iso) {
     var url = 'https://flagcdn.com/' + iso + '.svg';
     box.innerHTML = '<img src="' + url + '" height="28" style="border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)" alt="' + iso + '">';
+  } else {
+    box.innerHTML = '<span style="font-size:20px">🏳</span>';
+  }
+}
+</script>
+<?php }
+
+function adminMatchEdit(): void {
+    $db      = getDB();
+    $matchId = (int)($_GET['match_id'] ?? 0);
+    $match   = $db->prepare("SELECT * FROM matches WHERE id=?");
+    $match->execute([$matchId]);
+    $match = $match->fetch();
+    if (!$match) { flash('error','Partido no encontrado'); redirect('/admin/index.php?page=matches'); }
+
+    // Mismo array de equipos que adminMatchNew
+    $teams = [
+        'Alemania'=>'de','Austria'=>'at','Bélgica'=>'be','Bosnia y Herzegovina'=>'ba',
+        'Croacia'=>'hr','Escocia'=>'gb-sct','España'=>'es','Francia'=>'fr',
+        'Inglaterra'=>'gb-eng','Noruega'=>'no','Países Bajos'=>'nl','Portugal'=>'pt',
+        'República Checa'=>'cz','Suecia'=>'se','Suiza'=>'ch','Turquía'=>'tr',
+        'Argentina'=>'ar','Brasil'=>'br','Colombia'=>'co','Ecuador'=>'ec',
+        'Paraguay'=>'py','Uruguay'=>'uy','Venezuela'=>'ve',
+        'Canadá'=>'ca','Curazao'=>'cw','Estados Unidos'=>'us','Haití'=>'ht','México'=>'mx','Panamá'=>'pa',
+        'Arabia Saudita'=>'sa','Australia'=>'au','Catar'=>'qa','Corea del Sur'=>'kr',
+        'Irak'=>'iq','Irán'=>'ir','Japón'=>'jp','Jordania'=>'jo','Uzbekistán'=>'uz',
+        'Argelia'=>'dz','Cabo Verde'=>'cv','Costa de Marfil'=>'ci','Egipto'=>'eg',
+        'Ghana'=>'gh','Marruecos'=>'ma','RD del Congo'=>'cd','Senegal'=>'sn',
+        'Sudáfrica'=>'za','Túnez'=>'tn','Nueva Zelanda'=>'nz',
+    ];
+    ksort($teams);
+?>
+<h1 class="page-title">EDITAR <span>PARTIDO</span></h1>
+<?php renderFlash(); ?>
+<div class="card" style="max-width:600px">
+  <form method="POST" action="/admin/index.php?page=matches">
+    <?php csrfField(); ?>
+    <input type="hidden" name="action" value="edit_match">
+    <input type="hidden" name="match_id" value="<?= (int)$match['id'] ?>">
+
+    <div class="form-row">
+      <div class="form-group" style="flex:0 0 70px;text-align:center">
+        <label class="form-label">Bandera</label>
+        <div id="home_flag_display" style="height:38px;display:flex;align-items:center;justify-content:center;background:var(--bg2,#1a2236);border:1px solid rgba(255,255,255,.1);border-radius:6px">
+          <?php if ($match['home_flag']): ?>
+            <img src="https://flagcdn.com/<?= h($match['home_flag']) ?>.svg" height="28" style="border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)">
+          <?php else: ?><span style="font-size:20px">🏳</span><?php endif; ?>
+        </div>
+        <input type="hidden" name="home_flag" id="home_flag_value" value="<?= h($match['home_flag']) ?>">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Equipo Local</label>
+        <select name="home_team" id="home_team_select" class="form-control" required onchange="setFlag('home')">
+          <option value="">— Seleccionar equipo —</option>
+          <?php foreach ($teams as $name => $iso): ?>
+          <option value="<?= h($name) ?>" data-iso="<?= h($iso) ?>" <?= $match['home_team']===$name?'selected':'' ?>><?= h($name) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:0 0 70px;text-align:center">
+        <label class="form-label">Bandera</label>
+        <div id="away_flag_display" style="height:38px;display:flex;align-items:center;justify-content:center;background:var(--bg2,#1a2236);border:1px solid rgba(255,255,255,.1);border-radius:6px">
+          <?php if ($match['away_flag']): ?>
+            <img src="https://flagcdn.com/<?= h($match['away_flag']) ?>.svg" height="28" style="border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)">
+          <?php else: ?><span style="font-size:20px">🏳</span><?php endif; ?>
+        </div>
+        <input type="hidden" name="away_flag" id="away_flag_value" value="<?= h($match['away_flag']) ?>">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Equipo Visitante</label>
+        <select name="away_team" id="away_team_select" class="form-control" required onchange="setFlag('away')">
+          <option value="">— Seleccionar equipo —</option>
+          <?php foreach ($teams as $name => $iso): ?>
+          <option value="<?= h($name) ?>" data-iso="<?= h($iso) ?>" <?= $match['away_team']===$name?'selected':'' ?>><?= h($name) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Fecha y Hora</label>
+      <input type="datetime-local" name="match_date" class="form-control" required
+             value="<?= h(date('Y-m-d\TH:i', strtotime($match['match_date']))) ?>">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button type="submit" class="btn btn-primary btn-block">Guardar Cambios ✅</button>
+      <a href="/admin/index.php?page=matches" class="btn btn-ghost btn-block">Cancelar</a>
+    </div>
+  </form>
+</div>
+<script>
+function setFlag(side) {
+  var sel = document.getElementById(side + '_team_select');
+  var opt = sel.options[sel.selectedIndex];
+  var iso = opt ? opt.getAttribute('data-iso') : '';
+  var box = document.getElementById(side + '_flag_display');
+  document.getElementById(side + '_flag_value').value = iso || '';
+  if (iso) {
+    box.innerHTML = '<img src="https://flagcdn.com/' + iso + '.svg" height="28" style="border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.4)" alt="' + iso + '">';
   } else {
     box.innerHTML = '<span style="font-size:20px">🏳</span>';
   }
