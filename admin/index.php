@@ -38,6 +38,7 @@ echo '<nav class="admin-mobile-nav">
   <a href="/admin/index.php?page=players"   class="'.($p==='players'?'active':'').   '">👕 Jugadores</a>
   <a href="/admin/index.php?page=recharges" class="'.($p==='recharges'?'active':'').'"  >💰 Recargas</a>
   <a href="/admin/index.php?page=users"     class="'.($p==='users'?'active':'').     '">👥 Usuarios</a>
+  <a href="/admin/index.php?page=visitors"  class="'.($p==='visitors'?'active':'').  '">👁️ Visitas</a>
 </nav>';
 echo '<div class="admin-content">';
 
@@ -50,6 +51,7 @@ switch ($page) {
     case 'players':    adminPlayers();   break;
     case 'recharges':  adminRecharges(); break;
     case 'users':      adminUsers();     break;
+    case 'visitors':   adminVisitors();  break;
     default: echo '<div class="alert alert-error">Página no encontrada</div>';
 }
 
@@ -295,6 +297,7 @@ function renderAdminSidebar(string $active): void { ?>
   <div class="sidebar-section">General</div>
   <a href="/admin/index.php?page=dashboard" class="sidebar-link <?= $active==='dashboard'?'active':'' ?>">📊 Dashboard</a>
   <a href="/admin/index.php?page=users"     class="sidebar-link <?= $active==='users'?'active':'' ?>">👥 Usuarios</a>
+  <a href="/admin/index.php?page=visitors"  class="sidebar-link <?= $active==='visitors'?'active':'' ?>">👁️ Visitantes</a>
   <div class="sidebar-section">Partidos</div>
   <a href="/admin/index.php?page=matches"   class="sidebar-link <?= $active==='matches'?'active':'' ?>">⚽ Partidos</a>
   <a href="/admin/index.php?page=match_new" class="sidebar-link <?= $active==='match_new'?'active':'' ?>">➕ Nuevo Partido</a>
@@ -979,4 +982,191 @@ function adminPlayers(): void {
 
 </div>
 <?php endif; ?>
+<?php }
+
+// =============================================
+// ADMIN — VISITANTES
+// =============================================
+function adminVisitors(): void {
+    $db     = getDB();
+    $period = (int)($_GET['period'] ?? 7);
+    if (!in_array($period, [1, 7, 30], true)) $period = 7;
+
+    $totals = $db->prepare(
+        "SELECT COUNT(*) AS total_hits,
+                COUNT(DISTINCT session_id) AS unique_sessions,
+                COUNT(DISTINCT ip) AS unique_ips,
+                SUM(CASE WHEN user_id IS NOT NULL THEN 1 ELSE 0 END) AS logged_in,
+                SUM(CASE WHEN user_id IS NULL     THEN 1 ELSE 0 END) AS anonymous
+         FROM visitors WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)"
+    );
+    $totals->execute([$period]);
+    $t = $totals->fetch();
+
+    $byDay = $db->prepare(
+        "SELECT DATE(visited_at) AS day, COUNT(*) AS hits, COUNT(DISTINCT session_id) AS sessions
+         FROM visitors WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY DATE(visited_at) ORDER BY day ASC"
+    );
+    $byDay->execute([$period]);
+    $days = $byDay->fetchAll();
+
+    $topPages = $db->prepare(
+        "SELECT page, COUNT(*) AS hits FROM visitors
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY page ORDER BY hits DESC LIMIT 10"
+    );
+    $topPages->execute([$period]);
+    $pages = $topPages->fetchAll();
+
+    $devices = $db->prepare(
+        "SELECT device, COUNT(*) AS total FROM visitors
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY device ORDER BY total DESC"
+    );
+    $devices->execute([$period]);
+    $devs = $devices->fetchAll();
+
+    $topIPs = $db->prepare(
+        "SELECT ip, COUNT(DISTINCT session_id) AS sessions,
+                MAX(visited_at) AS last_seen,
+                GROUP_CONCAT(DISTINCT device ORDER BY device SEPARATOR ', ') AS devices
+         FROM visitors WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY ip ORDER BY sessions DESC LIMIT 15"
+    );
+    $topIPs->execute([$period]);
+    $ips = $topIPs->fetchAll();
+
+    $recent = $db->query(
+        "SELECT v.*, u.username, u.avatar
+         FROM visitors v LEFT JOIN users u ON v.user_id = u.id
+         ORDER BY v.visited_at DESC LIMIT 30"
+    )->fetchAll();
+?>
+<h1 class="page-title">VISITAN<span>TES</span></h1>
+<div class="flex-between mb-3" style="flex-wrap:wrap;gap:10px">
+  <p class="page-subtitle mb-0">Tráfico anónimo y registrado</p>
+  <div class="flex gap-1">
+    <?php foreach ([1=>'Hoy', 7=>'7 días', 30=>'30 días'] as $d => $lbl): ?>
+    <a href="?page=visitors&period=<?= $d ?>" class="btn btn-sm <?= $period==$d?'btn-primary':'btn-ghost' ?>"><?= $lbl ?></a>
+    <?php endforeach; ?>
+  </div>
+</div>
+
+<div class="grid-3 mb-4">
+  <div class="stat-box"><div class="stat-value"><?= number_format((int)$t['total_hits']) ?></div><div class="stat-label">Páginas vistas</div></div>
+  <div class="stat-box"><div class="stat-value text-gold"><?= number_format((int)$t['unique_sessions']) ?></div><div class="stat-label">Visitas únicas</div></div>
+  <div class="stat-box"><div class="stat-value"><?= number_format((int)$t['unique_ips']) ?></div><div class="stat-label">IPs distintas</div></div>
+  <div class="stat-box"><div class="stat-value text-green"><?= number_format((int)$t['logged_in']) ?></div><div class="stat-label">Con sesión</div></div>
+  <div class="stat-box"><div class="stat-value"><?= number_format((int)$t['anonymous']) ?></div><div class="stat-label">Anónimos</div></div>
+</div>
+
+<div class="grid-2 mb-4" style="gap:20px;align-items:start">
+  <div class="card">
+    <div class="card-header">📅 Visitas por día</div>
+    <?php if (empty($days)): ?>
+      <div class="text-muted fs-sm text-center" style="padding:16px">Sin datos aún</div>
+    <?php else:
+      $maxHits = max(array_column($days, 'hits'));
+    ?>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:8px 0">
+      <?php foreach ($days as $d):
+        $pct = $maxHits > 0 ? round($d['hits'] / $maxHits * 100) : 0;
+      ?>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+        <span style="width:80px;color:var(--text-dim);flex-shrink:0"><?= date('d/m', strtotime($d['day'])) ?></span>
+        <div style="flex:1;background:var(--bg3);border-radius:4px;height:18px;overflow:hidden">
+          <div style="width:<?= $pct ?>%;background:var(--gold);height:100%;border-radius:4px"></div>
+        </div>
+        <span style="width:36px;text-align:right;font-family:var(--font-head);color:var(--gold)"><?= (int)$d['hits'] ?></span>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="card-header">📱 Dispositivos</div>
+      <div style="display:flex;gap:16px;padding:12px 0;flex-wrap:wrap">
+        <?php
+        $icons = ['desktop'=>'🖥️','mobile'=>'📱','tablet'=>'🖱️','bot'=>'🤖'];
+        foreach ($devs as $dev):
+          $pct = $t['total_hits'] > 0 ? round($dev['total'] / $t['total_hits'] * 100) : 0;
+        ?>
+        <div style="flex:1;min-width:70px;text-align:center">
+          <div style="font-size:26px"><?= $icons[$dev['device']] ?? '❓' ?></div>
+          <div class="stat-value" style="font-size:18px"><?= $pct ?>%</div>
+          <div class="stat-label" style="font-size:11px"><?= ucfirst(h($dev['device'])) ?><br><span class="text-muted">(<?= (int)$dev['total'] ?>)</span></div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">📄 Top páginas</div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Página</th><th style="text-align:right">Visitas</th></tr></thead>
+          <tbody>
+          <?php foreach ($pages as $pg): ?>
+          <tr>
+            <td class="fs-sm" style="word-break:break-all"><?= h($pg['page']) ?></td>
+            <td style="text-align:right"><span class="badge badge-open"><?= (int)$pg['hits'] ?></span></td>
+          </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">🌐 IPs más activas</div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>IP</th><th>Sesiones</th><th>Dispositivo</th><th>Última visita</th></tr></thead>
+      <tbody>
+      <?php foreach ($ips as $row): ?>
+      <tr>
+        <td class="font-sub"><?= h($row['ip']) ?></td>
+        <td><span class="badge badge-pending"><?= (int)$row['sessions'] ?></span></td>
+        <td class="fs-xs text-muted"><?= h($row['devices']) ?></td>
+        <td class="fs-xs text-muted"><?= timeAgo($row['last_seen']) ?></td>
+      </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">⏱️ Últimas 30 visitas</div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Cuándo</th><th>IP</th><th>Página</th><th>Dispositivo</th><th>Usuario</th><th>Referrer</th></tr></thead>
+      <tbody>
+      <?php foreach ($recent as $r): ?>
+      <tr>
+        <td class="fs-xs text-muted" style="white-space:nowrap"><?= timeAgo($r['visited_at']) ?></td>
+        <td class="font-sub fs-sm"><?= h($r['ip']) ?></td>
+        <td class="fs-xs" style="word-break:break-all;max-width:180px"><?= h($r['page']) ?></td>
+        <td><?php $icons=['desktop'=>'🖥️','mobile'=>'📱','tablet'=>'🖱️']; echo $icons[$r['device']]??'❓'; ?></td>
+        <td class="fs-sm">
+          <?php if ($r['user_id']): ?>
+            <span class="badge badge-won"><?= h($r['avatar'].' '.$r['username']) ?></span>
+          <?php else: ?>
+            <span class="text-muted fs-xs">Anónimo</span>
+          <?php endif; ?>
+        </td>
+        <td class="fs-xs text-muted" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          <?= $r['referrer'] ? h(parse_url($r['referrer'], PHP_URL_HOST) ?: $r['referrer']) : '—' ?>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
 <?php }

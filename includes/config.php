@@ -484,3 +484,40 @@ function flash(string $key, string $msg = ''): ?string {
     unset($_SESSION['flash'][$key]);
     return $val;
 }
+
+// =============================================
+// VISITOR TRACKING
+// =============================================
+function detectDevice(string $ua): string {
+    if (preg_match('/bot|crawl|spider|slurp|mediapartners/i', $ua)) return 'bot';
+    if (preg_match('/tablet|ipad/i', $ua)) return 'tablet';
+    if (preg_match('/mobile|android|iphone|ipod|windows phone/i', $ua)) return 'mobile';
+    return 'desktop';
+}
+
+function trackVisitor(): void {
+    startSession();
+    $db      = getDB();
+    $ip      = getClientIP();
+    $ua      = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+    $device  = detectDevice($ua);
+    if ($device === 'bot') return;
+    $page    = substr($_SERVER['REQUEST_URI'] ?? '/', 0, 255);
+    $ref     = substr($_SERVER['HTTP_REFERER'] ?? '', 0, 255) ?: null;
+    $sessId  = substr(session_id(), 0, 64);
+    $userId  = $_SESSION['user_id'] ?? null;
+
+    // Evitar duplicados: misma sesión + misma página en los últimos 5 min
+    $dup = $db->prepare(
+        "SELECT id FROM visitors
+         WHERE session_id=? AND page=? AND visited_at > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+         LIMIT 1"
+    );
+    $dup->execute([$sessId, $page]);
+    if ($dup->fetch()) return;
+
+    $db->prepare(
+        "INSERT INTO visitors (session_id, ip, user_agent, device, page, referrer, user_id)
+         VALUES (?,?,?,?,?,?,?)"
+    )->execute([$sessId, $ip, $ua, $device, $page, $ref, $userId]);
+}

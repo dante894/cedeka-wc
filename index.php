@@ -17,6 +17,7 @@ function flagImg(string $iso, int $h = 28): string {
 startSession();
 $page = $_GET['page'] ?? 'home';
 $user = getCurrentUser();
+trackVisitor();
 
 // Logout
 if ($page === 'logout') {
